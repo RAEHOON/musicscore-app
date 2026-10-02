@@ -64,7 +64,7 @@ class BackupManager @Inject constructor(
                 }
             }
             val stagedDb = File(staging, "db/${AppDatabase.NAME}")
-            require(File(staging, MANIFEST).exists() && stagedDb.exists()) { "악보북 백업 파일이 아닙니다" }
+            require(File(staging, MANIFEST).exists() && stagedDb.exists()) { "Hoon's뷰어 백업 파일이 아닙니다" }
 
             db.close()
             val dbFile = context.getDatabasePath(AppDatabase.NAME)

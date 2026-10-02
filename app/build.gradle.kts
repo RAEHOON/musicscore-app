@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
@@ -14,8 +16,23 @@ android {
         applicationId = "com.scorebook.app"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "1.0.0"
+        // 버전은 gradle.properties 의 appVersionCode / appVersionName 에서 관리
+        versionCode = providers.gradleProperty("appVersionCode").get().toInt()
+        versionName = providers.gradleProperty("appVersionName").get()
+    }
+
+    // 배포용 서명: keystore.properties(깃에 올리지 않음)가 있으면 그 키로, 없으면 디버그 키로 서명
+    val keystoreFile = rootProject.file("keystore.properties")
+    val releaseSigning = if (keystoreFile.exists()) {
+        val props = Properties().apply { keystoreFile.inputStream().use { load(it) } }
+        signingConfigs.create("release") {
+            storeFile = file(props.getProperty("storeFile"))
+            storePassword = props.getProperty("storePassword")
+            keyAlias = props.getProperty("keyAlias")
+            keyPassword = props.getProperty("keyPassword")
+        }
+    } else {
+        signingConfigs.getByName("debug")
     }
 
     buildTypes {
@@ -26,8 +43,7 @@ android {
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro",
             )
-            // 개인 사이드로드용: 디버그 키로 서명. 스토어 배포 시 별도 서명 설정으로 교체하세요.
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = releaseSigning
             // 태블릿 실기기는 ARM. (에뮬레이터 테스트는 debug 빌드 사용)
             ndk { abiFilters += listOf("arm64-v8a", "armeabi-v7a") }
         }
@@ -40,6 +56,7 @@ android {
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     testOptions {

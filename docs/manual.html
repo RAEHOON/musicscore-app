@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hoon's뷰어 사용 설명서</title>
+<style>
+  :root {
+    --ink: #1d1f2b;
+    --muted: #5b6070;
+    --line: #e3ded6;
+    --paper: #fbf8f3;
+    --accent: #e0703f;
+    --accent-soft: #fbe6da;
+    --navy: #272b44;
+    --tip: #eef4ec;
+    --tip-line: #9cbf92;
+    --warn: #fdf1e3;
+    --warn-line: #e6a85c;
+  }
+  @page { size: A4; margin: 16mm 15mm 18mm; }
+  * { box-sizing: border-box; }
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: "Pretendard", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+    font-size: 10.5pt; line-height: 1.65; word-break: keep-all;
+  }
+  main { max-width: 820px; margin: 0 auto; padding: 0 16px 40px; }
+
+  /* 표지 */
+  .cover {
+    min-height: 255mm; display: flex; flex-direction: column; justify-content: space-between;
+    padding: 28mm 6mm 10mm; break-after: page;
+  }
+  .cover .mark { width: 68px; height: 68px; border-radius: 18px; background: var(--navy);
+    display: grid; place-items: center; color: #fff; font-size: 38px; }
+  .cover h1 { font-size: 40pt; line-height: 1.1; margin: 22px 0 8px; letter-spacing: -0.5px; }
+  .cover .sub { font-size: 15pt; color: var(--muted); margin: 0; }
+  .cover .ver { display: inline-block; margin-top: 18px; padding: 4px 14px; border-radius: 999px;
+    background: var(--accent-soft); color: #9a3f16; font-weight: 700; font-size: 11pt; }
+  .cover .lead { font-size: 12pt; max-width: 520px; margin-top: 34px; }
+  .cover .foot { color: var(--muted); font-size: 9.5pt; border-top: 1px solid var(--line); padding-top: 10px; }
+
+  /* 목차 */
+  .toc { break-after: page; }
+  .toc ol { columns: 2; column-gap: 32px; padding-left: 20px; font-size: 11pt; }
+  .toc li { margin: 4px 0; break-inside: avoid; }
+  .toc a { color: var(--ink); text-decoration: none; }
+
+  h2 {
+    font-size: 17pt; margin: 30px 0 10px; padding-bottom: 6px; border-bottom: 2px solid var(--ink);
+    break-after: avoid;
+  }
+  h2 .num { color: var(--accent); margin-right: 8px; }
+  h3 { font-size: 12.5pt; margin: 20px 0 6px; break-after: avoid; }
+  p { margin: 6px 0; }
+  ul, ol { padding-left: 20px; margin: 6px 0; }
+  li { margin: 3px 0; }
+  section { break-inside: auto; }
+  .chapter { break-before: page; }
+  .chapter:first-of-type { break-before: auto; }
+
+  .btn { display: inline-block; padding: 0 7px; border: 1px solid #c9c3b8; border-radius: 6px;
+    background: #fff; font-size: 9.5pt; font-weight: 600; white-space: nowrap; }
+  kbd { font-family: inherit; padding: 0 6px; border: 1px solid #c9c3b8; border-bottom-width: 2px;
+    border-radius: 5px; background: #fff; font-size: 9pt; }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0 12px; font-size: 10pt; break-inside: auto; }
+  th, td { text-align: left; vertical-align: top; padding: 6px 8px; border-bottom: 1px solid var(--line); }
+  th { background: #f1ece4; font-weight: 700; }
+  tr { break-inside: avoid; }
+  td:first-child { white-space: nowrap; font-weight: 600; }
+
+  .box { border-left: 4px solid; border-radius: 6px; padding: 8px 12px; margin: 10px 0; break-inside: avoid; }
+  .tip { background: var(--tip); border-color: var(--tip-line); }
+  .warn { background: var(--warn); border-color: var(--warn-line); }
+  .box b:first-child { margin-right: 4px; }
+
+  .steps { counter-reset: s; list-style: none; padding-left: 0; }
+  .steps > li { counter-increment: s; position: relative; padding-left: 30px; margin: 6px 0; }
+  .steps > li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 21px; height: 21px;
+    border-radius: 50%; background: var(--navy); color: #fff; font-size: 9pt; font-weight: 700;
+    display: grid; place-items: center; }
+
+  .bar { display: flex; flex-wrap: wrap; gap: 6px; padding: 8px 10px; background: #efeae2; border-radius: 10px;
+    margin: 8px 0; align-items: center; font-size: 9.5pt; }
+  .bar span { background: #fff; border-radius: 6px; padding: 2px 8px; border: 1px solid var(--line); }
+  .bar .title { background: transparent; border: none; font-weight: 700; margin-right: auto; }
+
+  .feedback { break-inside: avoid; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; }
+  .check li { list-style: "☐  "; }
+
+  @media print { body { background: #fff; } .cover { background: var(--paper); border-radius: 14px; } }
+  @media screen {
+    body { padding-top: 16px; }
+    .cover { min-height: auto; padding: 40px 0 30px; }
+    .chapter { break-before: auto; }
+  }
+  @media (max-width: 600px) {
+    .toc ol { columns: 1; }
+    .cover h1 { font-size: 30pt; }
+    td:first-child { white-space: normal; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+<div class="cover">
+  <div>
+    <div class="mark">♪</div>
+    <h1>Hoon's뷰어</h1>
+    <p class="sub">태블릿 악보 뷰어 · 사용 설명서</p>
+    <span class="ver">V1.0</span>
+    <p class="lead">PDF·사진 악보를 넘겨 보고, 펜으로 바로 필기하고, 도돌이표 링크·곡 바로가기·메트로놈·피아노·녹음까지
+      연주에 필요한 기능을 한 앱에 담았습니다. 인터넷 없이 모든 데이터가 기기 안에만 저장됩니다.</p>
+  </div>
+  <div class="foot">안드로이드 8.0 이상 태블릿 권장 (휴대폰에서도 동작) · 테스트 배포판</div>
+</div>
+
+<nav class="toc">
+  <h2>목차</h2>
+  <ol>
+    <li><a href="#install">설치하기</a></li>
+    <li><a href="#screens">화면 구성</a></li>
+    <li><a href="#import">악보 불러오기·정리</a></li>
+    <li><a href="#viewer">악보 보기</a></li>
+    <li><a href="#turn">페이지 넘기기</a></li>
+    <li><a href="#ink">펜으로 필기하기</a></li>
+    <li><a href="#export">PDF로 저장</a></li>
+    <li><a href="#links">도돌이표·D.S. 링크</a></li>
+    <li><a href="#songs">곡 자동 나누기·곡 바로가기</a></li>
+    <li><a href="#setlist">셋리스트</a></li>
+    <li><a href="#edit">페이지 편집</a></li>
+    <li><a href="#photo">사진으로 악보 만들기</a></li>
+    <li><a href="#tools">연습 도구</a></li>
+    <li><a href="#log">연습 기록</a></li>
+    <li><a href="#perform">공연 모드</a></li>
+    <li><a href="#settings">설정·백업</a></li>
+    <li><a href="#faq">자주 묻는 질문</a></li>
+    <li><a href="#feedback">피드백 부탁드려요</a></li>
+  </ol>
+</nav>
+
+<section class="chapter" id="install">
+  <h2><span class="num">1</span>설치하기</h2>
+  <p>Play 스토어가 아닌 설치 파일(APK)로 배포하는 테스트 버전입니다.</p>
+  <ol class="steps">
+    <li>받은 <b>HoonsViewer_V1.0.apk</b> 파일을 태블릿으로 옮깁니다 (카카오톡, 메일, 구글 드라이브, USB 등).</li>
+    <li>태블릿의 <b>내 파일</b>(또는 카카오톡 파일함)에서 APK 를 누릅니다.</li>
+    <li>"출처를 알 수 없는 앱" 안내가 나오면 <span class="btn">설정</span> → 해당 앱(내 파일·카카오톡 등)의 <b>이 출처 허용</b>을 켜고 돌아옵니다.</li>
+    <li><span class="btn">설치</span>를 누릅니다. Play 프로텍트가 "알 수 없는 앱" 경고를 띄우면 <b>세부정보 → 무시하고 설치</b>를 고르세요.</li>
+    <li>앱 목록에 <b>Hoon's뷰어</b>가 생기면 완료입니다.</li>
+  </ol>
+  <div class="box warn"><b>주의</b> 서버가 없어 모든 악보와 필기는 그 기기에만 있습니다. 앱을 지우면 데이터도 함께 지워지니,
+    지우거나 기기를 바꾸기 전에 <a href="#settings">설정 → 백업 파일 만들기</a>를 해 두세요.</div>
+  <div class="box tip"><b>업데이트</b> 새 버전 APK 를 받으면 지우지 말고 그대로 설치하면 됩니다. 악보와 필기는 유지됩니다.
+    현재 버전은 <b>설정 맨 아래 "앱 버전"</b>에서 확인할 수 있어요.</div>
+</section>
+
+<section id="screens">
+  <h2><span class="num">2</span>화면 구성</h2>
+  <p>왼쪽(세로 화면에서는 아래쪽) 메뉴로 네 화면을 오갑니다.</p>
+  <table>
+    <tr><th>메뉴</th><th>하는 일</th></tr>
+    <tr><td>악보</td><td>불러온 악보 목록. 검색·정렬·즐겨찾기·태그로 찾고, 눌러서 엽니다.</td></tr>
+    <tr><td>셋리스트</td><td>공연·레슨 순서대로 악보를 묶어 두고 차례로 엽니다.</td></tr>
+    <tr><td>연습 기록</td><td>악보를 열어 둔 시간이 자동으로 쌓여 오늘·최근 7일·곡별 통계를 보여 줍니다.</td></tr>
+    <tr><td>설정</td><td>보기 방식, 페이지 넘기기, 펜, 얼굴 제스처, 백업.</td></tr>
+  </table>
+</section>
+
+<section id="import">
+  <h2><span class="num">3</span>악보 불러오기·정리</h2>
+  <h3>불러오기</h3>
+  <ul>
+    <li>오른쪽 아래 <span class="btn">+ 악보 추가</span> → <b>PDF 파일 불러오기</b>. 여러 파일을 한 번에 고를 수 있고, 같은 파일은 중복으로 들어가지 않습니다.</li>
+    <li><b>사진으로 악보 만들기</b>: 종이 악보를 찍은 사진 여러 장을 한 권의 악보로 만듭니다. (<a href="#photo">12장</a>)</li>
+    <li>다른 앱에서 PDF 나 사진을 <b>공유 → Hoon's뷰어</b> 또는 <b>열기 → Hoon's뷰어</b> 해도 바로 들어옵니다.</li>
+  </ul>
+  <h3>찾기·정리</h3>
+  <ul>
+    <li>검색창: 제목·작곡가·태그로 찾습니다. <b>초성 검색</b>도 됩니다 (예: <kbd>ㅇㅁ</kbd> → 아멘).</li>
+    <li>오른쪽 위 정렬 버튼: 최근에 연 순 / 제목순 / 작곡가순 / 추가한 순.</li>
+    <li>악보 카드의 <span class="btn">⋮</span>: 정보 편집(제목·작곡가·장르·조성·태그), 페이지 편집, 즐겨찾기, 셋리스트에 추가, 삭제.</li>
+    <li>카드를 <b>길게 누르면</b> 여러 개 선택 모드가 됩니다. 선택한 악보를 <b>합치기</b>(한 권으로), 셋리스트에 추가, 한꺼번에 삭제할 수 있어요.</li>
+  </ul>
+</section>
+
+<section id="viewer">
+  <h2><span class="num">4</span>악보 보기</h2>
+  <p>악보를 열면 위쪽에 도구 막대가 있습니다. <b>화면 가운데를 탭</b>하면 막대가 숨겨지고, 다시 탭하면 나타납니다.</p>
+  <div class="bar">
+    <span class="title">← 제목 · 쪽수 · 지금 곡</span>
+    <span>곡 n/N</span><span>▦ 페이지</span><span>🔖+ 북마크</span><span>✎ 필기</span><span>🔗 링크</span><span>📖 보기</span><span>♪ 연습 도구</span><span>⋮ 더보기</span>
+  </div>
+  <table>
+    <tr><th>버튼</th><th>기능</th></tr>
+    <tr><td>곡 n/N</td><td>곡 바로가기 목록. 곡을 누르면 그 곡 첫 페이지로 이동 (<a href="#songs">9장</a>)</td></tr>
+    <tr><td>▦ 페이지</td><td>페이지 패널: <b>전체 페이지</b> 썸네일 / <b>곡·북마크</b> / <b>링크</b> 목록</td></tr>
+    <tr><td>🔖+ 북마크</td><td>지금 페이지에 이름 붙인 북마크 추가 (예: 2악장, 앙코르곡)</td></tr>
+    <tr><td>✎ 필기</td><td>필기 도구 막대 열기/닫기 (펜을 대면 자동으로 열립니다)</td></tr>
+    <tr><td>🔗 링크</td><td>도돌이표·D.S. 점프 링크 만들기 모드 (<a href="#links">8장</a>)</td></tr>
+    <tr><td>📖 보기</td><td>보기 방식, 색상, 여백 자동 자르기, 링크 표시 켜기/끄기</td></tr>
+    <tr><td>♪ 연습 도구</td><td>메트로놈·피아노·녹음·음원 (<a href="#tools">13장</a>)</td></tr>
+    <tr><td>⋮ 더보기</td><td>자동 넘김, 얼굴 제스처, 공연 모드, PDF로 저장, 곡 자동 나누기, 페이지 편집</td></tr>
+  </table>
+  <h3>보기 방식 (📖 보기)</h3>
+  <table>
+    <tr><td>한 페이지</td><td>한 장씩. 태블릿을 가로로 돌리면 자동으로 두 페이지로 펼쳐집니다 (설정에서 끌 수 있음).</td></tr>
+    <tr><td>두 페이지</td><td>가로 화면에서 책처럼 두 장을 나란히.</td></tr>
+    <tr><td>반 페이지 넘김</td><td>아래 절반을 먼저 다음 페이지로 바꿔, 연주하면서 미리 다음 줄을 볼 수 있습니다.</td></tr>
+    <tr><td>세로 스크롤</td><td>페이지를 위아래로 이어서 스크롤. 자동 스크롤과 함께 쓰기 좋습니다.</td></tr>
+    <tr><td>색상</td><td>기본 / 야간(반전) / 세피아</td></tr>
+    <tr><td>여백 자동 자르기</td><td>악보 주변 흰 여백을 잘라 음표를 더 크게 보여 줍니다.</td></tr>
+  </table>
+  <ul>
+    <li>두 손가락으로 <b>벌려서 확대</b>, 확대한 상태에서 끌어서 이동. 확대한 부분은 선명하게 다시 그려집니다.</li>
+    <li>아래쪽 슬라이더를 끌면 원하는 페이지로 빠르게 이동합니다.</li>
+    <li>마지막으로 보던 페이지를 기억해서 다음에 열면 그 페이지부터 보여 줍니다.</li>
+  </ul>
+</section>
+
+<section id="turn">
+  <h2><span class="num">5</span>페이지 넘기기</h2>
+  <table>
+    <tr><th>방법</th><th>사용법</th></tr>
+    <tr><td>스와이프</td><td>손가락으로 좌우로 밀기 (세로 스크롤 모드에서는 위아래)</td></tr>
+    <tr><td>탭</td><td>화면 <b>오른쪽 가장자리 탭 = 다음</b>, <b>왼쪽 = 이전</b>, 가운데 = 메뉴. 탭 영역 너비는 설정에서 조절</td></tr>
+    <tr><td>블루투스 페달</td><td>연결만 하면 바로 동작 (PageUp/PageDown, 방향키, 스페이스, 엔터 등)</td></tr>
+    <tr><td>볼륨 버튼</td><td>설정에서 켜면 볼륨 아래 = 다음, 위 = 이전</td></tr>
+    <tr><td>자동 넘김</td><td>⋮ 더보기 → 자동 넘김: 정해 둔 초마다 넘김 (세로 모드에서는 자동 스크롤). 간격·속도는 설정에서</td></tr>
+    <tr><td>얼굴 제스처</td><td>⋮ 더보기 → 얼굴 제스처로 넘기기: 전면 카메라로 <b>고개를 오른쪽으로 돌리면 다음</b>, 왼쪽은 이전.
+      설정에서 미소 짓기·입 벌리기로 바꿀 수 있고 민감도도 조절 가능. 카메라 영상은 기기 밖으로 나가지 않습니다.</td></tr>
+  </table>
+</section>
+
+<section id="ink">
+  <h2><span class="num">6</span>펜으로 필기하기</h2>
+  <p><b>펜(S펜 등)을 화면에 대기만 하면</b> 자동으로 필기 모드가 켜집니다. 손가락은 계속 페이지 넘기기·확대에 쓰이므로
+    펜으로 쓰다가 손가락으로 바로 넘길 수 있어요. 필기는 한 획마다 즉시 저장되어 앱을 꺼도 그대로 남습니다.</p>
+  <h3>필기 도구</h3>
+  <table>
+    <tr><th>도구</th><th>설명</th></tr>
+    <tr><td>펜</td><td>색상·굵기 선택. 압력에 따라 굵기가 자연스럽게 변합니다.</td></tr>
+    <tr><td>형광펜</td><td>반투명으로 겹쳐 칠하기</td></tr>
+    <tr><td>지우개</td><td><b>획 지우개</b>: 닿은 획을 통째로 / <b>영역 지우개</b>: 네모 크기만큼 문질러 부분만 지우기 (크기 조절).
+      S펜 옆 버튼을 누른 채 문질러도 지우개가 됩니다.</td></tr>
+    <tr><td>올가미</td><td>둘러서 선택 → 끌어서 이동, 휴지통으로 삭제</td></tr>
+    <tr><td>도형</td><td>직선 ─, 네모 □, 동그라미 ○, 화살표 → 등</td></tr>
+    <tr><td>텍스트</td><td>원하는 곳을 눌러 글자 입력 (예: 여기서 숨쉬기). 다시 누르면 수정</td></tr>
+    <tr><td>음악 기호</td><td>셈여림(pp~ff), 아티큘레이션, 쉼표·음표, 숨표, 페르마타, 지시어 160여 개(rit., a tempo, cresc. …)를 도장처럼 찍기.
+      크기는 슬라이더 또는 <b>숫자를 직접 입력</b></td></tr>
+  </table>
+  <ul>
+    <li><b>실행 취소 / 다시 실행</b>: 필기 막대의 ↶ ↷ 버튼</li>
+    <li><b>레이어</b>: "선생님 지시", "내 연습 메모", "공연용" 처럼 나눠 두고 필요할 때만 켜고 끌 수 있습니다. 새 필기는 선택한 레이어에 들어갑니다.</li>
+    <li><b>손가락으로 쓰기</b>: 펜이 없으면 필기 막대에서 켜면 손가락으로도 쓸 수 있습니다 (이때는 손가락으로 넘기기 대신 필기).</li>
+    <li><b>손바닥 무시</b>: 펜이 화면 가까이 있으면 손바닥 터치를 무시합니다 (설정에서 끄고 켜기).</li>
+    <li>필기 막대의 ✕ 로 필기 모드를 닫습니다.</li>
+  </ul>
+</section>
+
+<section id="export">
+  <h2><span class="num">7</span>PDF로 저장</h2>
+  <p>⋮ 더보기 → <b>PDF로 저장 (필기 포함)</b></p>
+  <ul>
+    <li><b>새 PDF 파일로 저장</b> 또는 <b>가져왔던 원본 PDF에 덮어쓰기</b> 중 선택</li>
+    <li>필기 포함 여부, 보이는 레이어만 넣을지 선택</li>
+    <li>필기는 벡터로 들어가 확대해도 선명하고, 다른 PDF 앱에서도 보입니다. 앱 안의 필기는 그대로 남아 계속 고칠 수 있어요.</li>
+  </ul>
+</section>
+
+<section id="links">
+  <h2><span class="num">8</span>도돌이표·D.S. 링크</h2>
+  <p>D.S., Coda, 도돌이표처럼 다른 페이지로 점프해야 하는 곳에 링크를 걸어 두면, 연주 중 그 위치를 탭해 바로 이동합니다.</p>
+  <ol class="steps">
+    <li>위쪽 🔗 <b>링크</b> 버튼을 눌러 링크 편집 모드로 들어갑니다.</li>
+    <li>점프할 표시(예: D.S. 글자) 위를 <b>손가락으로 드래그</b>해 네모를 그립니다.</li>
+    <li>이동할 페이지를 썸네일에서 고르면 링크가 생깁니다.</li>
+    <li>🔗 버튼을 다시 눌러 편집 모드를 끕니다.</li>
+  </ol>
+  <ul>
+    <li>연주 중 링크 네모를 탭하면 그 페이지로 이동하고, 위쪽에 <span class="btn">N쪽으로 돌아가기</span>가 뜹니다. 필요 없으면 옆의 ✕ 로 닫으세요.</li>
+    <li><b>링크 목록</b>: ▦ 페이지 → <b>링크</b> 탭에서 모든 링크를 한눈에 봅니다.
+      <br>줄 누르기 = 링크가 있는 페이지로 / → = 도착 페이지로 / ✎ = 이름(예: "D.S. → 세뇨")과 도착 페이지 수정 / 🗑 = 삭제</li>
+    <li>📖 보기 → 링크 표시를 끄면 악보 위 링크 네모를 숨길 수 있습니다.</li>
+  </ul>
+</section>
+
+<section id="songs">
+  <h2><span class="num">9</span>곡 자동 나누기·곡 바로가기</h2>
+  <p>여러 곡이 한 PDF 에 붙어 있는 악보집이라면, 곡마다 바로가기를 자동으로 만들 수 있습니다.</p>
+  <ol class="steps">
+    <li>⋮ 더보기 → <b>곡 자동 나누기</b> (또는 위쪽 <b>곡</b> 버튼 → 자동으로 곡 나누기)</li>
+    <li>앱이 모든 페이지를 살펴봅니다. 160쪽 정도면 30초~1분 걸립니다.
+      <ul>
+        <li>마지막 마디가 <b>끝세로줄(얇은 선 + 굵은 선)</b>로 끝나는 페이지를 찾고</li>
+        <li>다음 페이지 맨 위에 <b>크게 쓴 제목</b>이 있는지 확인해 곡 시작으로 판단합니다.</li>
+        <li>제목 글자를 읽어(OCR) 곡 이름을 붙이고, 악보집 앞에 목차가 있으면 목차로 오타를 고칩니다.</li>
+      </ul>
+    </li>
+    <li>찾은 곡 목록이 나옵니다. 이름이 틀렸으면 고치고, 표지처럼 곡이 아닌 것은 <b>체크를 빼세요</b>.</li>
+    <li><span class="btn">N곡으로 나누기</span>를 누르면 완료.</li>
+  </ol>
+  <ul>
+    <li>위쪽 <span class="btn">곡 3/19</span> 버튼을 누르면 곡 목록이 열리고, 곡을 누르면 바로 그 곡으로 이동합니다. 곡이 많으면 검색(초성 가능)도 됩니다.</li>
+    <li>제목 옆에 지금 보고 있는 곡 이름이 표시됩니다.</li>
+    <li>곡은 북마크로 저장됩니다. ▦ 페이지 → <b>곡·북마크</b> 탭에서 이름을 바꾸거나 지울 수 있어요.</li>
+  </ul>
+  <div class="box tip"><b>팁</b> 모든 분석은 기기 안에서만 이루어집니다. 제목이 없거나 아주 작은 악보집, 손글씨·흐린 스캔은 놓치거나 이름을 잘못 읽을 수 있으니
+    확인 화면에서 한 번 훑어봐 주세요. 직접 만들려면 곡 첫 페이지에서 🔖+ 북마크를 누르면 됩니다.</div>
+</section>
+
+<section id="setlist">
+  <h2><span class="num">10</span>셋리스트</h2>
+  <ul>
+    <li>왼쪽 메뉴 <b>셋리스트</b> → <span class="btn">새 셋리스트</span> (예: 10월 정기연주회) → <b>곡 추가</b></li>
+    <li>끌어서 순서를 바꾸고, 곡마다 <b>시작 위치</b>(북마크)를 정할 수 있습니다. 악보집 안의 한 곡만 넣을 때 유용해요.</li>
+    <li>셋리스트로 열면 마지막 페이지에서 다음으로 넘길 때 <b>다음 곡이 바로 열립니다</b>.</li>
+    <li>악보 목록에서 여러 악보를 길게 눌러 선택한 뒤 셋리스트에 한꺼번에 넣을 수도 있습니다.</li>
+  </ul>
+</section>
+
+<section id="edit">
+  <h2><span class="num">11</span>페이지 편집</h2>
+  <p>⋮ 더보기 → 페이지 편집 (또는 악보 목록 카드의 ⋮). 원본 파일은 건드리지 않고, 필기는 페이지를 따라 함께 움직입니다.</p>
+  <ul>
+    <li>길게 눌러 끌어서 <b>순서 변경</b></li>
+    <li>페이지를 선택한 뒤 <b>회전</b>(왼쪽/오른쪽), <b>자르기</b>(여백 자동 감지 가능, 선택한 모든 페이지에 적용), <b>삭제</b></li>
+    <li><b>빈 오선지 넣기</b>: 메모나 추가 악보를 쓸 빈 페이지</li>
+    <li><b>새 악보로 나누기</b>: 선택한 페이지만으로 새 악보 만들기</li>
+  </ul>
+</section>
+
+<section id="photo">
+  <h2><span class="num">12</span>사진으로 악보 만들기</h2>
+  <ol class="steps">
+    <li>악보 목록 → <span class="btn">+ 악보 추가</span> → <b>사진으로 악보 만들기</b></li>
+    <li>사진 선택(갤러리) 또는 파일에서 여러 장을 고릅니다. 고른 순서대로 페이지가 됩니다.</li>
+    <li>길게 눌러 끌어서 순서를 바꾸고, 회전 버튼으로 방향을 맞춥니다.</li>
+    <li>제목을 입력하고 <b>악보 만들기</b>(앱 안에서 보기) 또는 <b>PDF로 저장</b>(파일로 저장·공유).</li>
+  </ol>
+</section>
+
+<section id="tools">
+  <h2><span class="num">13</span>연습 도구 (♪)</h2>
+  <table>
+    <tr><th>도구</th><th>설명</th></tr>
+    <tr><td>메트로놈</td><td>BPM·박자 설정, <b>탭 템포</b>(박자에 맞춰 두드리면 템포 측정). 패널을 닫아도 계속 울립니다.</td></tr>
+    <tr><td>피아노</td><td>음정 확인용 2옥타브 건반. 옥타브 이동, 여러 건반 동시에 눌러 화음 확인. C4 = 가운데 도</td></tr>
+    <tr><td>녹음</td><td>연습을 녹음해 악보별로 저장하고 다시 듣기 (첫 사용 시 마이크 권한 허용)</td></tr>
+    <tr><td>음원</td><td>MP3 등 음원을 악보에 첨부. <b>재생 속도 조절</b>(느리게/빠르게)과 <b>A-B 구간 반복</b>으로 어려운 부분만 반복 연습</td></tr>
+  </table>
+</section>
+
+<section id="log">
+  <h2><span class="num">14</span>연습 기록</h2>
+  <p>악보를 20초 이상 열어 두면 연습 시간이 자동으로 기록됩니다. 왼쪽 메뉴 <b>연습 기록</b>에서 오늘, 연속 연습 일수, 최근 7일·2주 그래프, 곡별 누적 시간을 볼 수 있어요.</p>
+</section>
+
+<section id="perform">
+  <h2><span class="num">15</span>공연 모드</h2>
+  <p>⋮ 더보기 → <b>공연 모드</b>. 메뉴가 사라지고 실수로 필기되거나 메뉴가 열리지 않도록 잠깁니다. 페이지 넘기기와 링크 이동은 그대로 됩니다.
+    화면의 <b>자물쇠 아이콘을 길게 누르면</b> 해제됩니다.</p>
+</section>
+
+<section id="settings">
+  <h2><span class="num">16</span>설정·백업</h2>
+  <ul>
+    <li><b>악보 보기</b>: 기본 보기 방식, 가로 화면 두 페이지, 여백 자동 자르기, 마지막 페이지 기억, 넘김 애니메이션</li>
+    <li><b>페이지 넘기기</b>: 가장자리 탭 / 탭 영역 너비 / 볼륨 버튼 / 자동 넘김 간격 / 자동 스크롤 속도</li>
+    <li><b>펜</b>: 손바닥 무시, 펜 버튼을 누르면 지우개</li>
+    <li><b>얼굴 제스처</b>: 동작 종류, 민감도</li>
+    <li><b>백업</b>: <span class="btn">백업 파일 만들기</span>로 악보·필기·녹음·설정을 zip 하나로 저장 →
+      새 기기에서 <span class="btn">백업에서 복원</span>. (복원하면 지금 데이터가 백업 내용으로 바뀝니다)</li>
+    <li><b>앱 버전</b>: 맨 아래에서 확인 (피드백 보낼 때 같이 알려 주세요)</li>
+  </ul>
+</section>
+
+<section id="faq">
+  <h2><span class="num">17</span>자주 묻는 질문</h2>
+  <h3>펜을 댔는데 필기가 안 돼요</h3>
+  <p>펜 대신 손가락으로 터치되는 경우입니다. 정전식 일반 터치펜은 손가락으로 인식되니 필기 막대에서 <b>손가락으로 쓰기</b>를 켜 주세요.</p>
+  <h3>필기 중 손바닥 때문에 페이지가 넘어가요</h3>
+  <p>설정 → 펜 → <b>손바닥 무시</b>가 켜져 있는지 확인하세요.</p>
+  <h3>블루투스 페달이 안 먹어요</h3>
+  <p>태블릿 블루투스 설정에서 페달이 "연결됨"인지 확인하고, 페달 모드를 키보드(PageUp/PageDown 또는 방향키)로 맞춰 주세요.</p>
+  <h3>곡 자동 나누기 결과가 이상해요</h3>
+  <p>확인 화면에서 틀린 이름은 고치고, 잘못 잡힌 곡은 체크를 빼면 됩니다. 놓친 곡은 그 페이지에서 북마크로 직접 추가하세요.
+    어떤 악보집에서 틀렸는지 알려 주시면 개선에 큰 도움이 됩니다.</p>
+  <h3>앱을 지웠다 다시 깔면 필기가 남아 있나요?</h3>
+  <p>아니요. 데이터가 기기 안에만 있어 함께 지워집니다. 꼭 먼저 백업해 주세요. 업데이트(덮어 설치)는 데이터가 유지됩니다.</p>
+  <h3>인터넷이 필요한가요?</h3>
+  <p>전혀 필요 없습니다. 악보 분석, 제목 읽기, 얼굴 인식 모두 기기 안에서 처리됩니다.</p>
+</section>
+
+<section id="feedback">
+  <h2><span class="num">18</span>피드백 부탁드려요</h2>
+  <div class="feedback">
+    <p>테스트 버전이라 여러분의 의견이 가장 중요합니다. 아래 내용을 함께 보내 주시면 빠르게 고칠 수 있어요.</p>
+    <ul class="check">
+      <li>기기 모델 (예: 갤럭시 탭 S9) 과 앱 버전 (설정 맨 아래, 예: V1.0)</li>
+      <li>무엇을 하다가 어떤 문제가 생겼는지 (순서대로)</li>
+      <li>가능하면 화면 캡처나 화면 녹화</li>
+      <li>앱이 꺼졌다면 그 직전에 누른 버튼</li>
+      <li>있었으면 하는 기능, 불편했던 점, 좋았던 점</li>
+    </ul>
+    <p>특히 궁금한 것: <b>페이지 넘김이 부드러운지</b>, <b>펜 필기 반응 속도</b>, <b>곡 자동 나누기가 내 악보집에서 잘 맞는지</b>.</p>
+  </div>
+</section>
+
+</main>
+</body>
+</html>

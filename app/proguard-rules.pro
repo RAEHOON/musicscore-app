@@ -17,3 +17,10 @@
 # ML Kit 은 리플렉션으로 ComponentRegistrar 의 기본 생성자를 찾는다 (R8 full mode 에서 제거되면 얼굴 인식 실패)
 -keep class * implements com.google.firebase.components.ComponentRegistrar { <init>(); }
 -keep class com.google.mlkit.** { <init>(); }
+
+# 배포용 난독화 강화: 모든 클래스를 하나의 패키지로 옮기고 이름을 짧게 바꾼다.
+# 크래시 분석용 매핑 파일은 app/build/outputs/mapping/release/mapping.txt (버전마다 보관)
+-repackageclasses 'h'
+-allowaccessmodification
+-renamesourcefileattribute SourceFile
+-keepattributes SourceFile,LineNumberTable

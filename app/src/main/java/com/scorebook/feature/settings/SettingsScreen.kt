@@ -244,7 +244,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     headlineContent = { Text("백업 파일 만들기") },
                     supportingContent = { Text("악보·필기·녹음·설정을 zip 하나로 저장") },
                     modifier = Modifier.clickable(enabled = !state.busy) {
-                        backupLauncher.launch("악보북 백업 " + SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(Date()) + ".zip")
+                        backupLauncher.launch("Hoon's뷰어 백업 " + SimpleDateFormat("yyyy-MM-dd", Locale.KOREA).format(Date()) + ".zip")
                     },
                 )
                 ListItem(
@@ -258,6 +258,10 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                 ListItem(
                     headlineContent = { Text("사용 중인 저장 공간") },
                     trailingContent = { Text(formatBytes(state.storageBytes)) },
+                )
+                ListItem(
+                    headlineContent = { Text("앱 버전") },
+                    trailingContent = { Text("V${com.scorebook.BuildConfig.VERSION_NAME} (${com.scorebook.BuildConfig.VERSION_CODE})") },
                 )
             }
         }

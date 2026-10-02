@@ -122,7 +122,7 @@ fun LibraryScreen(
                 SelectionTopBar(state, viewModel::onIntent)
             } else {
                 TopAppBar(
-                    title = { Text("악보북", fontWeight = FontWeight.Bold) },
+                    title = { Text("Hoon's뷰어", fontWeight = FontWeight.Bold) },
                     actions = { SortMenu(state.sort) { viewModel.onIntent(LibraryIntent.SortChanged(it)) } },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.background),
                 )

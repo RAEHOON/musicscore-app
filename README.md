@@ -1,4 +1,4 @@
-# 악보북 (ScoreBook)
+# Hoon's뷰어 (ScoreBook)
 
 서버 없이 기기 안에서 모든 것을 처리하는 안드로이드 태블릿용 악보 앱.
 Kotlin · Jetpack Compose · MVI.
@@ -7,7 +7,25 @@ Kotlin · Jetpack Compose · MVI.
 
 - Android Studio (JDK 21+), Android SDK 37
 - `./gradlew :app:assembleDebug` → `app/build/outputs/apk/debug/app-debug.apk`
-- `./gradlew :app:assembleRelease` → R8 축소된 ARM 전용 APK (디버그 키 서명, 개인 설치용)
+- `./gradlew :app:assembleRelease` → R8 축소·난독화된 ARM 전용 APK
+- 사용 설명서: [docs/manual.html](docs/manual.html) (Chrome 에서 인쇄 → PDF 로 저장)
+
+## 배포 (버전 관리)
+
+1. `gradle.properties` 의 `appVersionCode` 를 1 올리고 `appVersionName` 을 바꾼다 (설정 화면 맨 아래에 표시됨)
+2. `./gradlew :app:assembleRelease`
+3. `app/build/outputs/mapping/release/mapping.txt` 를 버전별로 보관 (난독화된 크래시 로그 해석용)
+4. `git tag v<버전>` 후 push
+
+릴리스 서명은 루트의 `keystore.properties`(깃 제외)가 가리키는 키스토어를 쓴다. 파일이 없으면 디버그 키로 서명된다.
+**키스토어를 잃어버리면 같은 앱으로 업데이트할 수 없으니 반드시 따로 백업할 것.**
+
+```properties
+storeFile=C:/dev/scorebook-keys/hoonsviewer-release.jks
+storePassword=...
+keyAlias=hoonsviewer
+keyPassword=...
+```
 
 ## 기능
 
