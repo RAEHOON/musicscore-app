@@ -20,7 +20,8 @@ Kotlin · Jetpack Compose · MVI.
 | 저장 | 필기는 획마다 즉시 DB 저장, "PDF로 저장"(새 파일 또는 원본 덮어쓰기, 벡터로 굽기) |
 | 사진 악보 | 사진 여러 장 → 순서 변경·회전 → 악보 / PDF로 저장 |
 | 페이지 편집 | 순서 변경, 회전, 자르기, 빈 오선지 삽입, 삭제, 선택 페이지로 새 악보 만들기(나누기) |
-| 링크/북마크 | 도돌이표·D.S.·Coda 점프 링크(+돌아가기), 곡별 북마크 |
+| 링크/북마크 | 도돌이표·D.S.·Coda 점프 링크(+돌아가기), 링크 목록에서 이름·이동 페이지 편집/삭제, 곡별 북마크 |
+| 곡 자동 나누기 | 여러 곡이 붙은 악보집에서 끝세로줄(얇은 줄+굵은 줄)과 다음 페이지의 큰 제목을 찾아 곡 시작 페이지를 자동 감지, 제목은 온디바이스 OCR(+목차로 오타 보정), 검토 후 적용 → 상단 "곡" 바로가기로 곡 이동 |
 | 셋리스트 | 순서 편집, 곡별 시작 북마크, 마지막 페이지에서 다음 곡 자동 열기 |
 | 연습 도구 | 샘플 정확도 메트로놈(탭 템포), 음정 확인용 피아노(2옥타브, 옥타브 이동, 화음), 녹음, 음원 첨부 + 속도 조절 + A-B 구간 반복, 연습 시간 자동 기록/통계 |
 | 백업 | DB + 악보 + 녹음 + 설정을 zip 하나로 백업/복원 |
@@ -36,6 +37,7 @@ core/
   render/     PageRenderer(PdfRenderer 직렬화 + HARDWARE 비트맵 LRU), PageGeometry(월드↔화면 변환)
   ink/        Jetpack Ink 브러시, 획 직렬화, 지우개/올가미/도형 기하, 음악 기호 렌더러
   input/      InputHub — 액티비티 수준 펜/손가락 라우터
+  analysis/   ScoreLayoutAnalyzer(오선·끝세로줄·제목 감지), SongSplitter(곡 나누기 + ML Kit 한글 OCR)
   pdf/        PdfExporter (PdfBox-Android)
   importer/   PDF/사진 가져오기
   audio/      Metronome, PianoSynth, Recorder, AudioPlayer

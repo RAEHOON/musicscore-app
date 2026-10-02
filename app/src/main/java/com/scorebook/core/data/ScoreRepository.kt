@@ -253,6 +253,7 @@ class ScoreRepository @Inject constructor(
                     fromPageId = pageIdMap.getValue(it.fromPageId),
                     left = it.left, top = it.top, right = it.right, bottom = it.bottom,
                     toPageId = pageIdMap.getValue(it.toPageId),
+                    label = it.label,
                 )
             }
         )

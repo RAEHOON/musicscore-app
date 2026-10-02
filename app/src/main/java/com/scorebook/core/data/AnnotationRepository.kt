@@ -85,6 +85,8 @@ class AnnotationRepository @Inject constructor(private val db: AppDatabase) {
 
     suspend fun deleteLink(id: Long) = db.linkDao().delete(id)
 
+    suspend fun updateLink(id: Long, label: String, toPageId: Long) = db.linkDao().update(id, label.trim(), toPageId)
+
     // ----- 북마크 -----
 
     fun observeBookmarks(scoreId: Long): Flow<List<Bookmark>> =

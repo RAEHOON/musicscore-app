@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
+import androidx.compose.ui.graphics.asImageBitmap
+import com.scorebook.core.analysis.SongSplitter
 import com.scorebook.core.data.AnnotationRepository
 import com.scorebook.core.data.PracticeRepository
 import com.scorebook.core.data.ScoreRepository
@@ -48,6 +50,7 @@ class ViewerViewModel @Inject constructor(
     private val settingsRepo: SettingsRepository,
     private val exporter: PdfExporter,
     val renderer: PageRenderer,
+    private val songSplitter: SongSplitter,
     val inputHub: InputHub,
     @param:ApplicationContext private val context: Context,
     @param:ApplicationScope private val appScope: CoroutineScope,
@@ -82,6 +85,7 @@ class ViewerViewModel @Inject constructor(
 
     private var saveLastPageJob: Job? = null
     private var autoTurnJob: Job? = null
+    private var songSplitJob: Job? = null
     private var sessionStart: Long? = null
     private var pendingExport: ExportOptions = ExportOptions()
 
@@ -257,6 +261,41 @@ class ViewerViewModel @Inject constructor(
                 setState { copy(linkReturnPage = null) }
             }
             ViewerIntent.DismissLinkReturn -> setState { copy(linkReturnPage = null) }
+            is ViewerIntent.OpenLinkEditor -> {
+                val link = currentState.links.firstOrNull { it.id == intent.linkId } ?: return
+                val target = currentState.pages.indexOfFirst { it.id == link.toPageId }.coerceAtLeast(0)
+                setState { copy(linkEditor = LinkEditor(link.id, link.label, target)) }
+            }
+            is ViewerIntent.SaveLinkEdit -> {
+                val editor = currentState.linkEditor ?: return
+                val target = currentState.pages.getOrNull(intent.targetIndex) ?: return
+                setState { copy(linkEditor = null) }
+                viewModelScope.launch { annotations.updateLink(editor.linkId, intent.label, target.id) }
+            }
+            is ViewerIntent.RequestDeleteLink -> currentState.links.firstOrNull { it.id == intent.linkId }?.let {
+                setState { copy(linkToDelete = it, linkEditor = null) }
+            }
+            ViewerIntent.StartSongSplit -> startSongSplit()
+            ViewerIntent.CancelSongSplit -> {
+                songSplitJob?.cancel()
+                setState { copy(songSplit = null) }
+            }
+            is ViewerIntent.EditSongCandidate -> setState {
+                val split = songSplit ?: return@setState this
+                copy(
+                    songSplit = split.copy(
+                        candidates = split.candidates.mapIndexed { i, c ->
+                            if (i != intent.index) c else c.copy(name = intent.name ?: c.name, include = intent.include ?: c.include)
+                        }
+                    )
+                )
+            }
+            ViewerIntent.ApplySongSplit -> applySongSplit()
+            is ViewerIntent.OpenSongPicker -> setState { copy(songPickerOpen = intent.open, panel = if (intent.open) null else panel) }
+            is ViewerIntent.JumpToSong -> {
+                setState { copy(songPickerOpen = false) }
+                goTo(intent.pageIndex)
+            }
             is ViewerIntent.OpenBookmarkDialog -> setState { copy(bookmarkDialogOpen = intent.open) }
             is ViewerIntent.AddBookmark -> {
                 val page = currentState.pages.getOrNull(currentState.currentPage) ?: return
@@ -267,6 +306,7 @@ class ViewerViewModel @Inject constructor(
                 }
             }
             is ViewerIntent.DeleteBookmark -> viewModelScope.launch { annotations.deleteBookmark(intent.id) }
+            is ViewerIntent.RenameBookmark -> viewModelScope.launch { annotations.renameBookmark(intent.id, intent.title.trim()) }
 
             is ViewerIntent.OpenExport -> setState { copy(exportDialogOpen = intent.open) }
             is ViewerIntent.StartExport -> startExport(intent.options)
@@ -276,6 +316,7 @@ class ViewerViewModel @Inject constructor(
                 copy(
                     textEditor = null, pendingLink = null, linkToDelete = null, panel = null, layersDialogOpen = false,
                     stampPickerOpen = false, exportDialogOpen = false, bookmarkDialogOpen = false,
+                    linkEditor = null, songPickerOpen = false,
                 )
             }
             ViewerIntent.LifecycleStart -> if (sessionStart == null && !currentState.loading) sessionStart = System.currentTimeMillis()
@@ -650,6 +691,57 @@ class ViewerViewModel @Inject constructor(
         viewModelScope.launch {
             annotations.addLink(scoreId, pending.pageId, pending.rect, target.id)
             sendEffect(ViewerEffect.Message("${targetIndex + 1}쪽으로 가는 링크를 만들었습니다"))
+        }
+    }
+
+    // ------------------------------------------------------------------ 곡 나누기
+
+    private fun startSongSplit() {
+        val pages = currentState.pages
+        if (pages.isEmpty()) return
+        songSplitJob?.cancel()
+        setState { copy(songSplit = SongSplitUi(total = pages.size), panel = null, songPickerOpen = false) }
+        songSplitJob = viewModelScope.launch {
+            try {
+                val found = songSplitter.detect(pages) { done, total ->
+                    setState { copy(songSplit = songSplit?.copy(done = done, total = total)) }
+                }
+                val existing = currentState.bookmarks.associateBy { it.pageId }
+                val ui = found.map { c ->
+                    SongCandidateUi(
+                        pageIndex = c.pageIndex,
+                        pageId = c.pageId,
+                        // 이미 이름을 붙여 둔 북마크가 있으면 그 이름을 우선
+                        name = existing[c.pageId]?.title ?: c.name,
+                        include = true,
+                        byTitle = c.byTitle,
+                        byPreviousEnd = c.byPreviousEnd,
+                        preview = c.preview?.asImageBitmap(),
+                    )
+                }
+                setState { copy(songSplit = songSplit?.copy(running = false, candidates = ui)) }
+            } catch (e: kotlinx.coroutines.CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                setState { copy(songSplit = songSplit?.copy(running = false, error = "분석하지 못했습니다: ${e.message}")) }
+            }
+        }
+    }
+
+    private fun applySongSplit() {
+        val split = currentState.songSplit ?: return
+        val chosen = split.candidates.filter { it.include && it.name.isNotBlank() }
+        setState { copy(songSplit = null) }
+        viewModelScope.launch {
+            val existing = currentState.bookmarks.associateBy { it.pageId }
+            for (c in chosen) {
+                val old = existing[c.pageId]
+                when {
+                    old == null -> annotations.addBookmark(scoreId, c.pageId, c.name.trim())
+                    old.title != c.name.trim() -> annotations.renameBookmark(old.id, c.name.trim())
+                }
+            }
+            sendEffect(ViewerEffect.Message("${chosen.size}곡으로 나눴습니다. 위쪽 '곡' 버튼으로 바로 이동할 수 있어요"))
         }
     }
 

@@ -42,6 +42,14 @@ android {
         compose = true
     }
 
+    testOptions {
+        unitTests.all { test ->
+            // 실제 악보 샘플로 곡 나누기 회귀 테스트: -Dscorebook.samples=폴더
+            providers.systemProperty("scorebook.samples").orNull?.let { test.systemProperty("scorebook.samples", it) }
+            test.maxHeapSize = "2g"
+        }
+    }
+
     packaging {
         resources.excludes += setOf(
             "META-INF/{AL2.0,LGPL2.1}",
@@ -100,6 +108,7 @@ dependencies {
     implementation(libs.camera.camera2)
     implementation(libs.camera.lifecycle)
     implementation(libs.mlkit.face)
+    implementation(libs.mlkit.text.korean)
 
     testImplementation(libs.junit)
 }

@@ -22,6 +22,7 @@ coroutines = "1.10.2"
 exifinterface = "1.4.1"
 camerax = "1.6.2"
 mlkitFace = "16.1.7"
+mlkitTextKorean = "16.0.1"
 junit = "4.13.2"
 
 [libraries]
@@ -68,6 +69,7 @@ androidx-exifinterface = { module = "androidx.exifinterface:exifinterface", vers
 camera-camera2 = { module = "androidx.camera:camera-camera2", version.ref = "camerax" }
 camera-lifecycle = { module = "androidx.camera:camera-lifecycle", version.ref = "camerax" }
 mlkit-face = { module = "com.google.mlkit:face-detection", version.ref = "mlkitFace" }
+mlkit-text-korean = { module = "com.google.mlkit:text-recognition-korean", version.ref = "mlkitTextKorean" }
 
 junit = { module = "junit:junit", version.ref = "junit" }
 

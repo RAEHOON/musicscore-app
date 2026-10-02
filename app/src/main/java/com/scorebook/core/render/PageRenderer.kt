@@ -114,6 +114,20 @@ class PageRenderer @Inject constructor(private val files: LibraryFiles) {
         }
     }
 
+    /** 레이아웃 분석/OCR 용: 픽셀을 읽을 수 있는 소프트웨어 비트맵 (캐시하지 않음) */
+    suspend fun renderSoftware(page: ScorePage, geometry: PageGeometry, widthPx: Int): Bitmap? =
+        withContext(renderDispatcher) {
+            val h = (widthPx / geometry.aspectRatio).roundToInt().coerceAtLeast(1)
+            val bmp = Bitmap.createBitmap(widthPx, h, Bitmap.Config.ARGB_8888)
+            bmp.eraseColor(Color.WHITE)
+            if (runCatching { drawInto(page, bmp, geometry.worldToLocal(widthPx.toFloat())) }.isSuccess) {
+                bmp
+            } else {
+                bmp.recycle()
+                null
+            }
+        }
+
     /** 여백 자동 자르기용: 실제 음표가 있는 영역(월드 비율) */
     suspend fun contentBounds(page: ScorePage): PageCrop? {
         val cacheKey = sourceKey(page)

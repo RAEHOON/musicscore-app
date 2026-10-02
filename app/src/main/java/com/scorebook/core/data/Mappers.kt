@@ -66,7 +66,7 @@ fun AnnotationItem.toEntity(createdAt: Long = System.currentTimeMillis()) = Item
     x = x, y = y, size = size, color = color, text = text, createdAt = createdAt,
 )
 
-fun LinkEntity.toModel() = ScoreLink(id, scoreId, fromPageId, WorldRect(left, top, right, bottom), toPageId)
+fun LinkEntity.toModel() = ScoreLink(id, scoreId, fromPageId, WorldRect(left, top, right, bottom), toPageId, label)
 
 fun BookmarkEntity.toModel() = Bookmark(id, scoreId, pageId, title)
 

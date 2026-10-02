@@ -30,7 +30,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.AutoAwesome
+import androidx.compose.material.icons.filled.Link
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
@@ -93,7 +96,8 @@ fun PagesPanel(state: ViewerState, renderer: PageRenderer, onIntent: (ViewerInte
             }
             PrimaryTabRow(selectedTabIndex = tab) {
                 Tab(selected = tab == 0, onClick = { tab = 0 }, text = { Text("전체 페이지") })
-                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("북마크 ${state.bookmarks.size}") })
+                Tab(selected = tab == 1, onClick = { tab = 1 }, text = { Text("곡·북마크 ${state.bookmarks.size}") })
+                Tab(selected = tab == 2, onClick = { tab = 2 }, text = { Text("링크 ${state.links.size}") })
             }
             if (tab == 0) {
                 LazyVerticalGrid(
@@ -127,31 +131,125 @@ fun PagesPanel(state: ViewerState, renderer: PageRenderer, onIntent: (ViewerInte
                         }
                     }
                 }
+            } else if (tab == 1) {
+                SongBookmarkList(state, onIntent)
             } else {
-                if (state.bookmarks.isEmpty()) {
-                    Text(
-                        "상단의 북마크 버튼으로 현재 페이지를 북마크할 수 있습니다.\n악보집 안의 곡마다 북마크를 만들어 두면 셋리스트에서 바로 그 곡부터 열 수 있어요.",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(16.dp),
-                    )
-                }
-                LazyColumn {
-                    items(state.bookmarks, key = { it.id }) { b ->
-                        val index = state.pages.indexOfFirst { it.id == b.pageId }
-                        ListItem(
-                            headlineContent = { Text(b.title) },
-                            supportingContent = { Text("${index + 1}쪽") },
-                            leadingContent = { Icon(Icons.Default.Bookmark, null, tint = MaterialTheme.colorScheme.secondary) },
-                            trailingContent = {
-                                IconButton(onClick = { onIntent(ViewerIntent.DeleteBookmark(b.id)) }) { Icon(Icons.Default.Delete, "삭제") }
-                            },
-                            modifier = Modifier.clickable {
-                                if (index >= 0) onIntent(ViewerIntent.GoToPage(index))
-                                onIntent(ViewerIntent.OpenPanel(null))
-                            },
+                LinkList(state, onIntent)
+            }
+        }
+    }
+}
+
+@Composable
+private fun SongBookmarkList(state: ViewerState, onIntent: (ViewerIntent) -> Unit) {
+    var renaming by remember { mutableStateOf<com.scorebook.core.model.Bookmark?>(null) }
+    Column {
+        TextButton(
+            onClick = { onIntent(ViewerIntent.StartSongSplit) },
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        ) {
+            Icon(Icons.Default.AutoAwesome, null)
+            Spacer(Modifier.width(6.dp))
+            Text("악보집을 곡별로 자동 나누기")
+        }
+        if (state.bookmarks.isEmpty()) {
+            Text(
+                "여러 곡이 붙어 있는 악보집이라면 '자동 나누기'를 눌러 보세요. 끝세로줄과 큰 제목을 찾아 곡마다 북마크를 만들어 줍니다.\n" +
+                    "직접 만들려면 상단의 북마크 버튼을 누르세요.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
+        LazyColumn {
+            items(state.songs, key = { it.bookmark.id }) { song ->
+                val b = song.bookmark
+                val current = state.currentSong?.bookmark?.id == b.id
+                ListItem(
+                    headlineContent = { Text(b.title, fontWeight = if (current) FontWeight.Bold else FontWeight.Normal) },
+                    supportingContent = { Text("${song.pageIndex + 1}쪽" + if (current) " · 지금 보는 곡" else "") },
+                    leadingContent = { Icon(Icons.Default.Bookmark, null, tint = MaterialTheme.colorScheme.secondary) },
+                    trailingContent = {
+                        Row {
+                            IconButton(onClick = { renaming = b }) { Icon(Icons.Default.Edit, "이름 변경") }
+                            IconButton(onClick = { onIntent(ViewerIntent.DeleteBookmark(b.id)) }) { Icon(Icons.Default.Delete, "삭제") }
+                        }
+                    },
+                    modifier = Modifier.clickable {
+                        onIntent(ViewerIntent.GoToPage(song.pageIndex))
+                        onIntent(ViewerIntent.OpenPanel(null))
+                    },
+                )
+            }
+        }
+    }
+    renaming?.let { b ->
+        TextInputDialog(
+            "곡 이름", b.title,
+            onConfirm = { onIntent(ViewerIntent.RenameBookmark(b.id, it)); renaming = null },
+            onDismiss = { renaming = null },
+        )
+    }
+}
+
+/** 도돌이표·D.S.·Coda 링크 관리: 출발 페이지로 가기, 바로 이동, 이름·대상 바꾸기, 삭제 */
+@Composable
+private fun LinkList(state: ViewerState, onIntent: (ViewerIntent) -> Unit) {
+    val pageIndex = remember(state.pages) { state.pages.withIndex().associate { it.value.id to it.index } }
+    val sorted = remember(state.links, pageIndex) {
+        state.links.sortedWith(compareBy({ pageIndex[it.fromPageId] ?: Int.MAX_VALUE }, { it.rect.top }))
+    }
+    Column {
+        TextButton(
+            onClick = {
+                onIntent(ViewerIntent.OpenPanel(null))
+                if (!state.linkMode) onIntent(ViewerIntent.ToggleLinkMode)
+            },
+            modifier = Modifier.padding(horizontal = 8.dp, vertical = 4.dp),
+        ) {
+            Icon(Icons.Default.Add, null)
+            Spacer(Modifier.width(6.dp))
+            Text("새 링크 만들기")
+        }
+        if (sorted.isEmpty()) {
+            Text(
+                "도돌이표·D.S.·Coda 처럼 다른 곳으로 점프해야 하는 위치에 링크를 만들어 두면, 연주 중 그 위치를 탭해 바로 이동할 수 있어요.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
+            )
+        }
+        LazyColumn {
+            items(sorted, key = { it.id }) { link ->
+                val from = pageIndex[link.fromPageId]
+                val to = pageIndex[link.toPageId]
+                val song = to?.let { t -> state.songs.lastOrNull { it.pageIndex <= t } }?.bookmark?.title
+                ListItem(
+                    headlineContent = { Text(link.label.ifBlank { "링크" }, maxLines = 1) },
+                    supportingContent = {
+                        Text(
+                            "${from?.plus(1) ?: "?"}쪽 → ${to?.plus(1) ?: "?"}쪽" + (song?.let { "\n$it" } ?: ""),
+                            maxLines = 2,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         )
-                    }
-                }
+                    },
+                    leadingContent = { Icon(Icons.Default.Link, null, tint = Color(0xFF1565C0)) },
+                    trailingContent = {
+                        Row {
+                            IconButton(onClick = {
+                                to?.let { onIntent(ViewerIntent.GoToPage(it)) }
+                                onIntent(ViewerIntent.OpenPanel(null))
+                            }) { Icon(Icons.AutoMirrored.Filled.ArrowForward, "도착 페이지로 이동") }
+                            IconButton(onClick = { onIntent(ViewerIntent.OpenLinkEditor(link.id)) }) { Icon(Icons.Default.Edit, "편집") }
+                            IconButton(onClick = { onIntent(ViewerIntent.RequestDeleteLink(link.id)) }) { Icon(Icons.Default.Delete, "삭제") }
+                        }
+                    },
+                    // 행을 누르면 링크가 있는 출발 페이지로
+                    modifier = Modifier.clickable {
+                        from?.let { onIntent(ViewerIntent.GoToPage(it)) }
+                        onIntent(ViewerIntent.OpenPanel(null))
+                    },
+                )
             }
         }
     }
@@ -391,6 +489,9 @@ fun ViewerDialogs(state: ViewerState, renderer: PageRenderer, onIntent: (ViewerI
     if (state.stampPickerOpen) StampPickerDialog(state, onIntent)
     if (state.exportDialogOpen) ExportDialog(state, onIntent)
     if (state.pendingLink != null) LinkTargetDialog(state, renderer, onIntent)
+    state.linkEditor?.let { LinkEditDialog(it, state, renderer, onIntent) }
+    state.songSplit?.let { SongSplitDialog(it, onIntent) }
+    if (state.songPickerOpen) SongPickerDialog(state, onIntent)
     state.linkToDelete?.let {
         ConfirmDialog(
             title = "링크 삭제",

@@ -281,7 +281,9 @@ private fun OverlayLayer(
                     val r = RectF(link.rect.left, link.rect.top, link.rect.right, link.rect.bottom)
                     nc.drawRoundRect(r, 4f, 4f, linkFill)
                     nc.drawRoundRect(r, 4f, 4f, linkStroke)
-                    decor.pageNumbers[link.toPageId]?.let { n -> nc.drawText("→ ${n}쪽", r.left + 2f, r.top - 3f, labelPaint) }
+                    val target = decor.pageNumbers[link.toPageId]?.let { "→ ${it}쪽" }.orEmpty()
+                    val label = if (link.label.isNotBlank()) "${link.label} $target" else target
+                    if (label.isNotBlank()) nc.drawText(label, r.left + 2f, r.top - 3f, labelPaint)
                 }
             }
             if (selection != null) {

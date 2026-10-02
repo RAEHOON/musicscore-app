@@ -125,6 +125,7 @@ data class ScoreLink(
     val fromPageId: Long,
     val rect: WorldRect,
     val toPageId: Long,
+    val label: String = "",
 )
 
 @Immutable

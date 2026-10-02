@@ -130,6 +130,8 @@ data class LinkEntity(
     val right: Float,
     val bottom: Float,
     val toPageId: Long,
+    /** 사용자가 붙인 이름 (예: "D.S. → 세뇨"). v2 에서 추가 */
+    @ColumnInfo(defaultValue = "") val label: String = "",
 )
 
 @Entity(

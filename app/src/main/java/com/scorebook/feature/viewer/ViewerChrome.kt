@@ -27,7 +27,9 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Redo
 import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.Approval
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.AutoStories
+import androidx.compose.material.icons.automirrored.filled.QueueMusic
 import androidx.compose.material.icons.filled.BookmarkAdd
 import androidx.compose.material.icons.filled.BorderColor
 import androidx.compose.material.icons.filled.Category
@@ -125,9 +127,17 @@ fun ViewerTopBar(
                 )
                 val pageText = if (state.pages.isEmpty()) "" else pageLabel(state)
                 val setlistText = state.setlist?.let { " · 셋리스트 ${it.index + 1}/${it.entries.size}" }.orEmpty()
-                Text(pageText + setlistText, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val songText = state.currentSong?.let { " · ${it.bookmark.title}" }.orEmpty()
+                Text(
+                    pageText + songText + setlistText,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
             }
-            IconButton(onClick = { onIntent(ViewerIntent.OpenPanel(ViewerPanel.PAGES)) }) { Icon(Icons.Default.GridView, "페이지·북마크") }
+            SongShortcutButton(state, onIntent)
+            IconButton(onClick = { onIntent(ViewerIntent.OpenPanel(ViewerPanel.PAGES)) }) { Icon(Icons.Default.GridView, "페이지·북마크·링크") }
             IconButton(onClick = { onIntent(ViewerIntent.OpenBookmarkDialog(true)) }) { Icon(Icons.Default.BookmarkAdd, "북마크 추가") }
             ToggleIcon(state.annotating, Icons.Default.Edit, "필기") { onIntent(ViewerIntent.ToggleAnnotating) }
             ToggleIcon(state.linkMode, Icons.Default.Link, "링크 편집") { onIntent(ViewerIntent.ToggleLinkMode) }
@@ -148,6 +158,30 @@ private fun pageLabel(state: ViewerState): String {
         }
         ViewMode.HALF -> if (state.halfStep) "$cur½ / ${n}쪽" else "$cur / ${n}쪽"
         else -> "$cur / ${n}쪽"
+    }
+}
+
+/** 곡 바로가기: 곡이 있으면 "곡 n/N" 칩, 없으면 아이콘만 */
+@Composable
+private fun SongShortcutButton(state: ViewerState, onIntent: (ViewerIntent) -> Unit) {
+    val songs = state.songs
+    if (songs.isEmpty()) {
+        IconButton(onClick = { onIntent(ViewerIntent.OpenSongPicker(true)) }) { Icon(Icons.AutoMirrored.Filled.QueueMusic, "곡 바로가기") }
+        return
+    }
+    val current = state.currentSong
+    val number = current?.let { c -> songs.indexOfFirst { it.bookmark.id == c.bookmark.id } + 1 } ?: 0
+    Surface(
+        onClick = { onIntent(ViewerIntent.OpenSongPicker(true)) },
+        shape = RoundedCornerShape(18.dp),
+        color = MaterialTheme.colorScheme.secondaryContainer,
+        modifier = Modifier.padding(horizontal = 4.dp),
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+            Icon(Icons.AutoMirrored.Filled.QueueMusic, null, Modifier.size(18.dp))
+            Spacer(Modifier.width(6.dp))
+            Text(if (number > 0) "곡 $number/${songs.size}" else "곡 목록 ${songs.size}", style = MaterialTheme.typography.labelLarge)
+        }
     }
 }
 
@@ -213,6 +247,11 @@ private fun MoreMenu(state: ViewerState, onIntent: (ViewerIntent) -> Unit, onOpe
                 text = { Text("PDF로 저장 (필기 포함)") },
                 leadingIcon = { Icon(Icons.Default.PictureAsPdf, null) },
                 onClick = { open = false; onIntent(ViewerIntent.OpenExport(true)) },
+            )
+            DropdownMenuItem(
+                text = { Text("곡 자동 나누기") },
+                leadingIcon = { Icon(Icons.Default.AutoAwesome, null) },
+                onClick = { open = false; onIntent(ViewerIntent.StartSongSplit) },
             )
             DropdownMenuItem(
                 text = { Text("페이지 편집") },

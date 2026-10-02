@@ -131,6 +131,9 @@ interface LinkDao {
 
     @Query("DELETE FROM links WHERE id = :id")
     suspend fun delete(id: Long)
+
+    @Query("UPDATE links SET label = :label, toPageId = :toPageId WHERE id = :id")
+    suspend fun update(id: Long, label: String, toPageId: Long)
 }
 
 @Dao

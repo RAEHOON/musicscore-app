@@ -53,6 +53,31 @@ data class TextEditor(
 
 data class PendingLink(val pageId: Long, val rect: WorldRect)
 
+/** 링크 이름/이동할 페이지 편집 */
+data class LinkEditor(val linkId: Long, val label: String, val targetIndex: Int)
+
+/** 자동 곡 나누기 결과 한 줄 (사용자가 이름을 고치고 뺄 수 있음) */
+data class SongCandidateUi(
+    val pageIndex: Int,
+    val pageId: Long,
+    val name: String,
+    val include: Boolean,
+    val byTitle: Boolean,
+    val byPreviousEnd: Boolean,
+    val preview: androidx.compose.ui.graphics.ImageBitmap?,
+)
+
+data class SongSplitUi(
+    val running: Boolean = true,
+    val done: Int = 0,
+    val total: Int = 0,
+    val candidates: List<SongCandidateUi> = emptyList(),
+    val error: String? = null,
+)
+
+/** 곡 = 북마크. 페이지 순서로 정렬해 바로가기에 쓴다 */
+data class SongEntry(val pageIndex: Int, val bookmark: Bookmark)
+
 data class SetlistContext(
     val setlistId: Long,
     val index: Int,
@@ -101,6 +126,9 @@ data class ViewerState(
     val layersDialogOpen: Boolean = false,
     val stampPickerOpen: Boolean = false,
     val exportDialogOpen: Boolean = false,
+    val linkEditor: LinkEditor? = null,
+    val songSplit: SongSplitUi? = null,
+    val songPickerOpen: Boolean = false,
     val exportProgress: Float? = null,
     val bookmarkDialogOpen: Boolean = false,
     val autoTurnActive: Boolean = false,
@@ -119,9 +147,28 @@ data class ViewerState(
 
     val visibleLayerIds: Set<Long> get() = layers.filter { it.visible }.mapTo(HashSet()) { it.id }
 
+    /** 페이지 순서로 정렬한 곡(북마크) 목록 */
+    val songs: List<SongEntry>
+        get() {
+            val index = pages.withIndex().associate { it.value.id to it.index }
+            return bookmarks.mapNotNull { b -> index[b.pageId]?.let { SongEntry(it, b) } }.sortedBy { it.pageIndex }
+        }
+
+    /** 지금 보고 있는 곡. 두 페이지 보기에서는 오른쪽 페이지 기준 (오른쪽에서 새 곡이 시작하면 그 곡) */
+    val currentSong: SongEntry?
+        get() {
+            val last = if (effectiveMode == ViewMode.TWO_PAGE) {
+                minOf(currentPage - currentPage % 2 + 1, pages.size - 1)
+            } else {
+                currentPage
+            }
+            return songs.lastOrNull { it.pageIndex <= last }
+        }
+
     val anyDialogOpen: Boolean
         get() = textEditor != null || pendingLink != null || linkToDelete != null || panel != null ||
-            layersDialogOpen || stampPickerOpen || exportDialogOpen || bookmarkDialogOpen
+            layersDialogOpen || stampPickerOpen || exportDialogOpen || bookmarkDialogOpen ||
+            linkEditor != null || songSplit != null || songPickerOpen
 
     val inkEnabled: Boolean get() = !loading && !performanceMode && !anyDialogOpen && exportProgress == null
 }
@@ -184,9 +231,21 @@ sealed interface ViewerIntent : UiIntent {
     data object ConfirmDeleteLink : ViewerIntent
     data object ReturnFromLink : ViewerIntent
     data object DismissLinkReturn : ViewerIntent
+    data class OpenLinkEditor(val linkId: Long) : ViewerIntent
+    data class SaveLinkEdit(val label: String, val targetIndex: Int) : ViewerIntent
+    data class RequestDeleteLink(val linkId: Long) : ViewerIntent
+
+    // 곡 나누기 / 곡 바로가기
+    data object StartSongSplit : ViewerIntent
+    data object CancelSongSplit : ViewerIntent
+    data class EditSongCandidate(val index: Int, val name: String? = null, val include: Boolean? = null) : ViewerIntent
+    data object ApplySongSplit : ViewerIntent
+    data class OpenSongPicker(val open: Boolean) : ViewerIntent
+    data class JumpToSong(val pageIndex: Int) : ViewerIntent
     data class OpenBookmarkDialog(val open: Boolean) : ViewerIntent
     data class AddBookmark(val title: String) : ViewerIntent
     data class DeleteBookmark(val id: Long) : ViewerIntent
+    data class RenameBookmark(val id: Long, val title: String) : ViewerIntent
 
     // 내보내기
     data class OpenExport(val open: Boolean) : ViewerIntent
