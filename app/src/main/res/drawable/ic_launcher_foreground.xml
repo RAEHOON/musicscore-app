@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp" android:height="108dp"
+    android:viewportWidth="108" android:viewportHeight="108">
+    <!-- 오선 -->
+    <path android:strokeColor="#FFF7F5F0" android:strokeWidth="2"
+        android:pathData="M28,40 L80,40 M28,48 L80,48 M28,56 L80,56 M28,64 L80,64 M28,72 L80,72" />
+    <!-- 음표 -->
+    <path android:fillColor="#FFEF8354"
+        android:pathData="M58,30 L62,30 L62,66 A7,5.5 0 1,1 58,62 Z" />
+    <path android:fillColor="#FFEF8354"
+        android:pathData="M62,30 C70,33 74,38 72,46 C70,41 66,38 62,38 Z" />
+</vector>
