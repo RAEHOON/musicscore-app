@@ -1,5 +1,6 @@
 package com.scorebook.feature.viewer
 
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -85,7 +86,7 @@ import kotlin.math.roundToInt
 fun PagesPanel(state: ViewerState, renderer: PageRenderer, onIntent: (ViewerIntent) -> Unit, modifier: Modifier = Modifier) {
     var tab by remember { mutableIntStateOf(0) }
     Surface(
-        modifier = modifier.fillMaxHeight().width(340.dp),
+        modifier = modifier.fillMaxHeight().widthIn(max = 340.dp).fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         shadowElevation = 12.dp,
     ) {
@@ -277,14 +278,16 @@ fun LayersDialog(state: ViewerState, onIntent: (ViewerIntent) -> Unit) {
                             leadingContent = {
                                 RadioButton(selected = layer.id == state.activeLayerId, onClick = { onIntent(ViewerIntent.SetActiveLayer(layer.id)) })
                             },
-                            headlineContent = { Text(layer.name) },
+                            headlineContent = { Text(layer.name, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis) },
                             trailingContent = {
+                                // 좁은 화면에서 이름이 한 글자씩 꺾이지 않도록 아이콘 간격을 줄인다
                                 Row {
-                                    IconButton(onClick = { onIntent(ViewerIntent.ToggleLayerVisible(layer.id)) }) {
+                                    val small = Modifier.size(38.dp)
+                                    IconButton(onClick = { onIntent(ViewerIntent.ToggleLayerVisible(layer.id)) }, modifier = small) {
                                         Icon(if (layer.visible) Icons.Default.Visibility else Icons.Default.VisibilityOff, "표시")
                                     }
-                                    IconButton(onClick = { renaming = layer }) { Icon(Icons.Default.Edit, "이름 변경") }
-                                    IconButton(onClick = { deleting = layer }, enabled = state.layers.size > 1) { Icon(Icons.Default.Delete, "삭제") }
+                                    IconButton(onClick = { renaming = layer }, modifier = small) { Icon(Icons.Default.Edit, "이름 변경") }
+                                    IconButton(onClick = { deleting = layer }, enabled = state.layers.size > 1, modifier = small) { Icon(Icons.Default.Delete, "삭제") }
                                 }
                             },
                             modifier = Modifier.clickable { onIntent(ViewerIntent.SetActiveLayer(layer.id)) },

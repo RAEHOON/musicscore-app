@@ -312,12 +312,19 @@ class ViewerViewModel @Inject constructor(
             is ViewerIntent.StartExport -> startExport(intent.options)
             is ViewerIntent.ExportToUri -> exportTo(intent.uri)
 
+            // 뒤로가기/바깥 탭: 위에 뜬 대화상자만 닫고, 그 아래 패널(페이지·링크 목록)은 남긴다
             ViewerIntent.DismissDialog -> setState {
-                copy(
-                    textEditor = null, pendingLink = null, linkToDelete = null, panel = null, layersDialogOpen = false,
-                    stampPickerOpen = false, exportDialogOpen = false, bookmarkDialogOpen = false,
-                    linkEditor = null, songPickerOpen = false,
-                )
+                val modalOpen = textEditor != null || pendingLink != null || linkToDelete != null || layersDialogOpen ||
+                    stampPickerOpen || exportDialogOpen || bookmarkDialogOpen || linkEditor != null || songPickerOpen
+                if (modalOpen) {
+                    copy(
+                        textEditor = null, pendingLink = null, linkToDelete = null, layersDialogOpen = false,
+                        stampPickerOpen = false, exportDialogOpen = false, bookmarkDialogOpen = false,
+                        linkEditor = null, songPickerOpen = false,
+                    )
+                } else {
+                    copy(panel = null)
+                }
             }
             ViewerIntent.LifecycleStart -> if (sessionStart == null && !currentState.loading) sessionStart = System.currentTimeMillis()
             ViewerIntent.LifecycleStop -> {

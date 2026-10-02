@@ -1,5 +1,6 @@
 package com.scorebook.feature.library
 
+import com.scorebook.ui.components.isCompactWidth
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -270,7 +271,13 @@ private fun SearchRow(state: LibraryState, onIntent: (LibraryIntent) -> Unit) {
     OutlinedTextField(
         value = state.query,
         onValueChange = { onIntent(LibraryIntent.QueryChanged(it)) },
-        placeholder = { Text("제목, 작곡가, 태그 검색 (초성 가능)") },
+        placeholder = {
+            Text(
+                if (isCompactWidth()) "제목·작곡가·태그 검색" else "제목, 작곡가, 태그 검색 (초성 가능)",
+                maxLines = 1,
+                overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+            )
+        },
         leadingIcon = { Icon(Icons.Default.Search, null) },
         trailingIcon = {
             if (state.query.isNotEmpty()) {

@@ -1,5 +1,6 @@
 package com.scorebook.feature.setlist
 
+import com.scorebook.ui.components.isCompactWidth
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -200,17 +201,24 @@ fun SetlistDetailScreen(
             TopAppBar(
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로") } },
                 title = {
-                    Text(state.name, modifier = Modifier.clickable { viewModel.onIntent(SetlistDetailIntent.ShowRename(true)) })
+                    Text(
+                        state.name,
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                        modifier = Modifier.clickable { viewModel.onIntent(SetlistDetailIntent.ShowRename(true)) },
+                    )
                 },
                 actions = {
+                    // 좁은 화면에서는 글자 없이 아이콘만 (제목 자리를 남긴다)
+                    val compact = isCompactWidth()
                     TextButton(onClick = { viewModel.onIntent(SetlistDetailIntent.OpenPicker(true)) }) {
-                        Icon(Icons.Default.Add, null); Text("곡 추가")
+                        Icon(Icons.Default.Add, "곡 추가"); if (!compact) Text("곡 추가")
                     }
                     Button(
                         onClick = { viewModel.onIntent(SetlistDetailIntent.Play(0)) },
                         enabled = state.entries.isNotEmpty(),
                         modifier = Modifier.padding(end = 8.dp),
-                    ) { Icon(Icons.Default.PlayArrow, null); Text("처음부터 연주") }
+                    ) { Icon(Icons.Default.PlayArrow, "처음부터 연주"); Text(if (compact) "연주" else "처음부터 연주") }
                 },
             )
         },
@@ -285,7 +293,7 @@ private fun SetlistEntryRow(
                 else Surface(color = Color.White, modifier = Modifier.fillMaxSize()) {}
             }
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(entry.score.title, style = MaterialTheme.typography.titleSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+                Text(entry.score.title, style = MaterialTheme.typography.titleSmall, maxLines = 2, overflow = TextOverflow.Ellipsis)
                 val start = bookmarks.firstOrNull { it.pageId == entry.startPageId }
                 Text(
                     listOfNotNull(entry.score.composer.ifBlank { null }, start?.let { "시작: ${it.title}" }).joinToString(" · "),

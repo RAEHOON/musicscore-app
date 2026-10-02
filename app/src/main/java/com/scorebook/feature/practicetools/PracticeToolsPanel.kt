@@ -1,5 +1,7 @@
 package com.scorebook.feature.practicetools
 
+import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.fillMaxWidth
 import android.Manifest
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -97,7 +99,7 @@ fun PracticeToolsPanel(
     DisposableEffect(Unit) { onDispose { viewModel.onIntent(PracticeToolsIntent.PanelClosed) } }
 
     Surface(
-        modifier = modifier.fillMaxHeight().width(360.dp),
+        modifier = modifier.fillMaxHeight().widthIn(max = 360.dp).fillMaxWidth(),
         color = MaterialTheme.colorScheme.surfaceContainerLow,
         shadowElevation = 12.dp,
     ) {

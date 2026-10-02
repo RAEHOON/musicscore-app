@@ -1,5 +1,6 @@
 package com.scorebook.feature.pageeditor
 
+import com.scorebook.ui.components.isCompactWidth
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -93,17 +94,29 @@ fun PageEditorScreen(
         viewModel.onIntent(PageEditorIntent.Move(from.index, to.index))
     }
 
+    val compact = isCompactWidth()
+    // 편집 버튼들. 좁은 화면에서는 아래쪽 막대로 내려 제목 자리를 확보한다
+    val editActions: @Composable () -> Unit = {
+        IconButton(onClick = { viewModel.onIntent(PageEditorIntent.Rotate(-90)) }) { Icon(Icons.AutoMirrored.Filled.RotateLeft, "왼쪽으로 회전") }
+        IconButton(onClick = { viewModel.onIntent(PageEditorIntent.Rotate(90)) }) { Icon(Icons.AutoMirrored.Filled.RotateRight, "오른쪽으로 회전") }
+        IconButton(onClick = { viewModel.onIntent(PageEditorIntent.OpenCrop(null)) }) { Icon(Icons.Default.Crop, "자르기") }
+        IconButton(onClick = { viewModel.onIntent(PageEditorIntent.InsertStaff) }) { Icon(Icons.Default.LibraryAdd, "빈 오선지 넣기") }
+        IconButton(onClick = { viewModel.onIntent(PageEditorIntent.RequestSplit) }) { Icon(Icons.AutoMirrored.Filled.CallSplit, "새 악보로 나누기") }
+        IconButton(onClick = { viewModel.onIntent(PageEditorIntent.RequestDelete) }) { Icon(Icons.Default.Delete, "삭제") }
+    }
     Scaffold(
         topBar = {
             TopAppBar(
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로") } },
                 title = {
                     Column {
-                        Text("페이지 편집")
+                        Text("페이지 편집", maxLines = 1)
                         Text(
                             if (state.selection.isEmpty()) "${state.score?.title.orEmpty()} · ${state.pages.size}쪽 · 길게 눌러 끌면 순서 변경"
                             else "${state.selection.size}쪽 선택됨",
                             style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
                         )
                     }
                 },
@@ -111,14 +124,16 @@ fun PageEditorScreen(
                     IconButton(onClick = {
                         viewModel.onIntent(if (state.selection.size == state.pages.size) PageEditorIntent.ClearSelection else PageEditorIntent.SelectAll)
                     }) { Icon(Icons.Default.SelectAll, "모두 선택") }
-                    IconButton(onClick = { viewModel.onIntent(PageEditorIntent.Rotate(-90)) }) { Icon(Icons.AutoMirrored.Filled.RotateLeft, "왼쪽으로 회전") }
-                    IconButton(onClick = { viewModel.onIntent(PageEditorIntent.Rotate(90)) }) { Icon(Icons.AutoMirrored.Filled.RotateRight, "오른쪽으로 회전") }
-                    IconButton(onClick = { viewModel.onIntent(PageEditorIntent.OpenCrop(null)) }) { Icon(Icons.Default.Crop, "자르기") }
-                    IconButton(onClick = { viewModel.onIntent(PageEditorIntent.InsertStaff) }) { Icon(Icons.Default.LibraryAdd, "빈 오선지 넣기") }
-                    IconButton(onClick = { viewModel.onIntent(PageEditorIntent.RequestSplit) }) { Icon(Icons.AutoMirrored.Filled.CallSplit, "새 악보로 나누기") }
-                    IconButton(onClick = { viewModel.onIntent(PageEditorIntent.RequestDelete) }) { Icon(Icons.Default.Delete, "삭제") }
+                    if (!compact) editActions()
                 },
             )
+        },
+        bottomBar = {
+            if (compact) {
+                androidx.compose.material3.BottomAppBar {
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) { editActions() }
+                }
+            }
         },
         snackbarHost = { SnackbarHost(snackbar) },
     ) { padding ->

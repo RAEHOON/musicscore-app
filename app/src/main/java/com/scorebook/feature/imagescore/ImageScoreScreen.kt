@@ -1,5 +1,6 @@
 package com.scorebook.feature.imagescore
 
+import com.scorebook.ui.components.isCompactWidth
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
@@ -98,20 +99,27 @@ fun ImageScoreScreen(
         viewModel.onIntent(ImageScoreIntent.Move(from.index, to.index))
     }
 
+    val compact = isCompactWidth()
     Scaffold(
         topBar = {
             TopAppBar(
                 navigationIcon = { IconButton(onClick = onBack) { Icon(Icons.AutoMirrored.Filled.ArrowBack, "뒤로") } },
-                title = { Text("사진으로 악보 만들기") },
+                title = {
+                    Text(
+                        if (compact) "사진 악보" else "사진으로 악보 만들기",
+                        maxLines = 1,
+                        overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis,
+                    )
+                },
                 actions = {
                     TextButton(onClick = { viewModel.onIntent(ImageScoreIntent.RequestPdf) }, enabled = !state.busy && state.items.isNotEmpty()) {
-                        Icon(Icons.Default.PictureAsPdf, null); Spacer(Modifier.width(4.dp)); Text("PDF로 저장")
+                        Icon(Icons.Default.PictureAsPdf, "PDF로 저장"); if (!compact) { Spacer(Modifier.width(4.dp)); Text("PDF로 저장") }
                     }
                     Button(
                         onClick = { viewModel.onIntent(ImageScoreIntent.Create) },
                         enabled = !state.busy && state.items.isNotEmpty(),
                         modifier = Modifier.padding(end = 8.dp),
-                    ) { Text("악보 만들기") }
+                    ) { Text(if (compact) "만들기" else "악보 만들기") }
                 },
             )
         },
@@ -119,19 +127,33 @@ fun ImageScoreScreen(
     ) { padding ->
         Column(Modifier.padding(padding).fillMaxSize()) {
             if (state.busy) LinearProgressIndicator(Modifier.fillMaxWidth())
-            Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            val titleField: @Composable (Modifier) -> Unit = { m ->
                 OutlinedTextField(
                     value = state.title,
                     onValueChange = { viewModel.onIntent(ImageScoreIntent.TitleChanged(it)) },
                     label = { Text("악보 제목") },
                     singleLine = true,
-                    modifier = Modifier.weight(1f),
+                    modifier = m,
                 )
+            }
+            val pickButtons: @Composable () -> Unit = {
                 Button(onClick = { pickPhotos.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)) }) {
                     Icon(Icons.Default.PhotoLibrary, null); Spacer(Modifier.width(6.dp)); Text("사진 선택")
                 }
                 OutlinedButton(onClick = { pickFiles.launch(arrayOf("image/*")) }) {
                     Icon(Icons.Default.FolderOpen, null); Spacer(Modifier.width(6.dp)); Text("파일에서")
+                }
+            }
+            if (compact) {
+                // 좁은 화면: 제목 칸을 한 줄 전체로, 버튼은 그 아래에
+                Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    titleField(Modifier.fillMaxWidth())
+                    Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) { pickButtons() }
+                }
+            } else {
+                Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    titleField(Modifier.weight(1f))
+                    pickButtons()
                 }
             }
             if (state.items.isEmpty()) {

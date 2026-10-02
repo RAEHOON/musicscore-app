@@ -1,5 +1,7 @@
 package com.scorebook.feature.viewer
 
+import com.scorebook.ui.components.isCompactWidth
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -101,7 +103,7 @@ fun SongSplitDialog(split: SongSplitUi, onIntent: (ViewerIntent) -> Unit) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         val n = split.candidates.count { it.include }
                         Text(
-                            "체크한 ${n}곡이 북마크(곡 목록)로 저장됩니다",
+                            if (isCompactWidth()) "" else "체크한 ${n}곡이 북마크(곡 목록)로 저장됩니다",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             modifier = Modifier.weight(1f),
@@ -117,6 +119,7 @@ fun SongSplitDialog(split: SongSplitUi, onIntent: (ViewerIntent) -> Unit) {
 
 @Composable
 private fun SongCandidateList(split: SongSplitUi, onIntent: (ViewerIntent) -> Unit, modifier: Modifier) {
+    val compact = isCompactWidth()
     Column(modifier) {
         Text(
             "${split.candidates.size}곡을 찾았습니다. 이름이 틀렸으면 고치고, 곡이 아닌 것은 체크를 빼 주세요.",
@@ -129,11 +132,23 @@ private fun SongCandidateList(split: SongSplitUi, onIntent: (ViewerIntent) -> Un
                     shape = RoundedCornerShape(14.dp),
                     color = if (c.include) MaterialTheme.colorScheme.surfaceContainerLow else MaterialTheme.colorScheme.surfaceContainerHighest.copy(alpha = 0.5f),
                 ) {
-                    Row(Modifier.padding(10.dp), verticalAlignment = Alignment.CenterVertically) {
+                    val preview: @Composable (Modifier) -> Unit = { m ->
+                        c.preview?.let { img ->
+                            Box(
+                                m
+                                    .height(64.dp)
+                                    .background(Color.White, RoundedCornerShape(6.dp))
+                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp)),
+                            ) {
+                                Image(img, contentDescription = "제목 미리보기", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(4.dp))
+                            }
+                        }
+                    }
+                    Row(Modifier.padding(if (compact) 6.dp else 10.dp), verticalAlignment = Alignment.CenterVertically) {
                         Checkbox(checked = c.include, onCheckedChange = { onIntent(ViewerIntent.EditSongCandidate(i, include = it)) })
                         Column(Modifier.weight(1f)) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Text("${i + 1}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(32.dp))
+                                if (!compact) Text("${i + 1}", style = MaterialTheme.typography.titleMedium, modifier = Modifier.width(32.dp))
                                 OutlinedTextField(
                                     value = c.name,
                                     onValueChange = { onIntent(ViewerIntent.EditSongCandidate(i, name = it)) },
@@ -142,29 +157,20 @@ private fun SongCandidateList(split: SongSplitUi, onIntent: (ViewerIntent) -> Un
                                     modifier = Modifier.weight(1f),
                                 )
                             }
-                            Row(
+                            FlowRow(
                                 horizontalArrangement = Arrangement.spacedBy(6.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                modifier = Modifier.padding(start = 32.dp, top = 4.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                                modifier = Modifier.padding(start = if (compact) 0.dp else 32.dp, top = 4.dp),
                             ) {
-                                Text("${c.pageIndex + 1}쪽", style = MaterialTheme.typography.labelLarge)
+                                Text("${c.pageIndex + 1}쪽", style = MaterialTheme.typography.labelLarge, modifier = Modifier.align(Alignment.CenterVertically))
                                 if (c.byTitle) Reason("큰 제목")
                                 if (c.byPreviousEnd) Reason("앞 페이지 끝세로줄")
                                 if (c.pageIndex == 0) Reason("첫 페이지")
                             }
+                            // 좁은 화면: 미리보기를 이름 아래에
+                            if (compact) preview(Modifier.padding(top = 6.dp).fillMaxWidth())
                         }
-                        c.preview?.let { img ->
-                            Box(
-                                Modifier
-                                    .padding(start = 10.dp)
-                                    .width(220.dp)
-                                    .height(64.dp)
-                                    .background(Color.White, RoundedCornerShape(6.dp))
-                                    .border(1.dp, MaterialTheme.colorScheme.outlineVariant, RoundedCornerShape(6.dp)),
-                            ) {
-                                Image(img, contentDescription = "제목 미리보기", contentScale = ContentScale.Fit, modifier = Modifier.fillMaxSize().padding(4.dp))
-                            }
-                        }
+                        if (!compact) preview(Modifier.padding(start = 10.dp).width(220.dp))
                     }
                 }
             }

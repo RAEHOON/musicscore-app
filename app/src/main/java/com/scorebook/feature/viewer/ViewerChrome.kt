@@ -1,5 +1,6 @@
 package com.scorebook.feature.viewer
 
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -98,6 +99,7 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import com.scorebook.core.model.ViewMode
+import com.scorebook.ui.components.isCompactWidth
 import kotlin.math.roundToInt
 
 @Composable
@@ -136,14 +138,26 @@ fun ViewerTopBar(
                     overflow = TextOverflow.Ellipsis,
                 )
             }
-            SongShortcutButton(state, onIntent)
-            IconButton(onClick = { onIntent(ViewerIntent.OpenPanel(ViewerPanel.PAGES)) }) { Icon(Icons.Default.GridView, "페이지·북마크·링크") }
-            IconButton(onClick = { onIntent(ViewerIntent.OpenBookmarkDialog(true)) }) { Icon(Icons.Default.BookmarkAdd, "북마크 추가") }
+            val compact = isCompactWidth()
+            var viewMenuOpen by remember { mutableStateOf(false) }
+            SongShortcutButton(state, onIntent, compact)
+            if (!compact) {
+                IconButton(onClick = { onIntent(ViewerIntent.OpenPanel(ViewerPanel.PAGES)) }) { Icon(Icons.Default.GridView, "페이지·북마크·링크") }
+                IconButton(onClick = { onIntent(ViewerIntent.OpenBookmarkDialog(true)) }) { Icon(Icons.Default.BookmarkAdd, "북마크 추가") }
+            }
             ToggleIcon(state.annotating, Icons.Default.Edit, "필기") { onIntent(ViewerIntent.ToggleAnnotating) }
-            ToggleIcon(state.linkMode, Icons.Default.Link, "링크 편집") { onIntent(ViewerIntent.ToggleLinkMode) }
-            ViewMenu(state, onIntent)
-            IconButton(onClick = { onIntent(ViewerIntent.OpenPanel(ViewerPanel.TOOLS)) }) { Icon(Icons.Default.MusicNote, "연습 도구") }
-            MoreMenu(state, onIntent, onOpenPageEditor)
+            if (!compact) {
+                ToggleIcon(state.linkMode, Icons.Default.Link, "링크 편집") { onIntent(ViewerIntent.ToggleLinkMode) }
+                ViewMenu(state, onIntent, viewMenuOpen, { viewMenuOpen = it })
+                IconButton(onClick = { onIntent(ViewerIntent.OpenPanel(ViewerPanel.TOOLS)) }) { Icon(Icons.Default.MusicNote, "연습 도구") }
+                MoreMenu(state, onIntent, onOpenPageEditor)
+            } else {
+                // 좁은 화면: 나머지 버튼은 더보기 메뉴로. 보기 메뉴는 더보기 버튼 자리에서 펼친다
+                Box {
+                    MoreMenu(state, onIntent, onOpenPageEditor, onShowViewMenu = { viewMenuOpen = true })
+                    ViewMenu(state, onIntent, viewMenuOpen, { viewMenuOpen = it }, showButton = false)
+                }
+            }
         }
     }
 }
@@ -163,7 +177,7 @@ private fun pageLabel(state: ViewerState): String {
 
 /** 곡 바로가기: 곡이 있으면 "곡 n/N" 칩, 없으면 아이콘만 */
 @Composable
-private fun SongShortcutButton(state: ViewerState, onIntent: (ViewerIntent) -> Unit) {
+private fun SongShortcutButton(state: ViewerState, onIntent: (ViewerIntent) -> Unit, compact: Boolean) {
     val songs = state.songs
     if (songs.isEmpty()) {
         IconButton(onClick = { onIntent(ViewerIntent.OpenSongPicker(true)) }) { Icon(Icons.AutoMirrored.Filled.QueueMusic, "곡 바로가기") }
@@ -177,10 +191,18 @@ private fun SongShortcutButton(state: ViewerState, onIntent: (ViewerIntent) -> U
         color = MaterialTheme.colorScheme.secondaryContainer,
         modifier = Modifier.padding(horizontal = 4.dp),
     ) {
-        Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp)) {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            modifier = Modifier.padding(horizontal = if (compact) 10.dp else 12.dp, vertical = 8.dp),
+        ) {
             Icon(Icons.AutoMirrored.Filled.QueueMusic, null, Modifier.size(18.dp))
-            Spacer(Modifier.width(6.dp))
-            Text(if (number > 0) "곡 $number/${songs.size}" else "곡 목록 ${songs.size}", style = MaterialTheme.typography.labelLarge)
+            Spacer(Modifier.width(if (compact) 4.dp else 6.dp))
+            val label = when {
+                compact -> if (number > 0) "$number/${songs.size}" else "${songs.size}"
+                number > 0 -> "곡 $number/${songs.size}"
+                else -> "곡 목록 ${songs.size}"
+            }
+            Text(label, style = MaterialTheme.typography.labelLarge)
         }
     }
 }
@@ -195,11 +217,16 @@ private fun ToggleIcon(checked: Boolean, icon: ImageVector, description: String,
 }
 
 @Composable
-private fun ViewMenu(state: ViewerState, onIntent: (ViewerIntent) -> Unit) {
-    var open by remember { mutableStateOf(false) }
+private fun ViewMenu(
+    state: ViewerState,
+    onIntent: (ViewerIntent) -> Unit,
+    expanded: Boolean,
+    onExpandedChange: (Boolean) -> Unit,
+    showButton: Boolean = true,
+) {
     Box {
-        IconButton(onClick = { open = true }) { Icon(Icons.Default.AutoStories, "보기") }
-        DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+        if (showButton) IconButton(onClick = { onExpandedChange(true) }) { Icon(Icons.Default.AutoStories, "보기") }
+        DropdownMenu(expanded = expanded, onDismissRequest = { onExpandedChange(false) }) {
             MenuHeader("페이지 보기")
             listOf(
                 ViewMode.SINGLE to "한 페이지 (가로 화면은 두 페이지)",
@@ -207,26 +234,60 @@ private fun ViewMenu(state: ViewerState, onIntent: (ViewerIntent) -> Unit) {
                 ViewMode.HALF to "반 페이지 넘김",
                 ViewMode.VERTICAL to "세로 스크롤",
             ).forEach { (mode, label) ->
-                CheckItem(label, state.settings.viewMode == mode) { open = false; onIntent(ViewerIntent.SetViewMode(mode)) }
+                CheckItem(label, state.settings.viewMode == mode) { onExpandedChange(false); onIntent(ViewerIntent.SetViewMode(mode)) }
             }
             HorizontalDivider()
             MenuHeader("색상")
             listOf(ColorMode.NORMAL to "기본", ColorMode.NIGHT to "야간 (반전)", ColorMode.SEPIA to "세피아").forEach { (mode, label) ->
-                CheckItem(label, state.colorMode == mode) { open = false; onIntent(ViewerIntent.SetColorMode(mode)) }
+                CheckItem(label, state.colorMode == mode) { onExpandedChange(false); onIntent(ViewerIntent.SetColorMode(mode)) }
             }
             HorizontalDivider()
-            CheckItem("여백 자동 자르기", state.settings.autoCropMargins) { open = false; onIntent(ViewerIntent.ToggleAutoCrop) }
-            CheckItem("링크 표시", state.showLinks) { open = false; onIntent(ViewerIntent.ToggleShowLinks) }
+            CheckItem("여백 자동 자르기", state.settings.autoCropMargins) { onExpandedChange(false); onIntent(ViewerIntent.ToggleAutoCrop) }
+            CheckItem("링크 표시", state.showLinks) { onExpandedChange(false); onIntent(ViewerIntent.ToggleShowLinks) }
         }
     }
 }
 
 @Composable
-private fun MoreMenu(state: ViewerState, onIntent: (ViewerIntent) -> Unit, onOpenPageEditor: () -> Unit) {
+private fun MoreMenu(
+    state: ViewerState,
+    onIntent: (ViewerIntent) -> Unit,
+    onOpenPageEditor: () -> Unit,
+    onShowViewMenu: (() -> Unit)? = null,
+) {
     var open by remember { mutableStateOf(false) }
     Box {
         IconButton(onClick = { open = true }) { Icon(Icons.Default.MoreVert, "더보기") }
         DropdownMenu(expanded = open, onDismissRequest = { open = false }) {
+            if (onShowViewMenu != null) {
+                // 좁은 화면에서 상단에 못 놓은 버튼들
+                DropdownMenuItem(
+                    text = { Text("페이지·곡·링크 목록") },
+                    leadingIcon = { Icon(Icons.Default.GridView, null) },
+                    onClick = { open = false; onIntent(ViewerIntent.OpenPanel(ViewerPanel.PAGES)) },
+                )
+                DropdownMenuItem(
+                    text = { Text("북마크 추가") },
+                    leadingIcon = { Icon(Icons.Default.BookmarkAdd, null) },
+                    onClick = { open = false; onIntent(ViewerIntent.OpenBookmarkDialog(true)) },
+                )
+                DropdownMenuItem(
+                    text = { Text(if (state.linkMode) "링크 편집 끝내기" else "링크 편집 (도돌이표·D.S.)") },
+                    leadingIcon = { Icon(Icons.Default.Link, null) },
+                    onClick = { open = false; onIntent(ViewerIntent.ToggleLinkMode) },
+                )
+                DropdownMenuItem(
+                    text = { Text("보기 방식·색상") },
+                    leadingIcon = { Icon(Icons.Default.AutoStories, null) },
+                    onClick = { open = false; onShowViewMenu() },
+                )
+                DropdownMenuItem(
+                    text = { Text("연습 도구 (메트로놈·피아노·녹음)") },
+                    leadingIcon = { Icon(Icons.Default.MusicNote, null) },
+                    onClick = { open = false; onIntent(ViewerIntent.OpenPanel(ViewerPanel.TOOLS)) },
+                )
+                HorizontalDivider()
+            }
             DropdownMenuItem(
                 text = { Text(if (state.autoTurnActive) "자동 넘김 멈추기" else if (state.effectiveMode == ViewMode.VERTICAL) "자동 스크롤" else "자동 넘김 (${state.settings.autoTurnSeconds}초)") },
                 leadingIcon = { Icon(if (state.autoTurnActive) Icons.Default.StopCircle else Icons.Default.PlayCircle, null) },
@@ -314,16 +375,26 @@ fun AnnotationToolbar(state: ViewerState, registry: PageRegistry, onIntent: (Vie
 
 @Composable
 private fun Pill(registry: PageRegistry, content: @Composable () -> Unit) {
+    val compact = isCompactWidth()
     Surface(
-        shape = RoundedCornerShape(28.dp),
+        shape = RoundedCornerShape(if (compact) 20.dp else 28.dp),
         color = MaterialTheme.colorScheme.surfaceContainerHigh,
         shadowElevation = 6.dp,
-        modifier = Modifier.inkBlocker(registry),
+        modifier = Modifier.inkBlocker(registry).then(if (compact) Modifier.padding(horizontal = 8.dp) else Modifier),
     ) {
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 2.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) { content() }
+        if (compact) {
+            // 좁은 화면: 가로 스크롤 대신 줄바꿈해서 실행 취소·닫기 버튼이 화면 밖으로 숨지 않게
+            FlowRow(
+                Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                horizontalArrangement = Arrangement.Center,
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) { content() }
+        } else {
+            Row(
+                Modifier.horizontalScroll(rememberScrollState()).padding(horizontal = 8.dp, vertical = 2.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) { content() }
+        }
     }
 }
 
