@@ -1,6 +1,7 @@
 package com.scorebook.core.audio
 
 import android.content.Context
+import android.content.Intent
 import android.media.MediaRecorder
 import android.os.Build
 import android.os.SystemClock
@@ -42,6 +43,8 @@ class Recorder @Inject constructor(
             recorder = r
             currentPath = rel
             _state.value = State(true, SystemClock.elapsedRealtime())
+            // 녹음은 화면이 보일 때만 시작되므로 일반 startService 로 충분하다. 실패해도 녹음은 계속한다.
+            runCatching { context.startService(Intent(context, RecordingService::class.java)) }
             true
         }.getOrElse {
             r.release()
@@ -56,6 +59,7 @@ class Recorder @Inject constructor(
         val path = currentPath
         val ok = runCatching { r.stop() }.isSuccess
         r.release()
+        runCatching { context.stopService(Intent(context, RecordingService::class.java)) }
         recorder = null
         currentPath = null
         _state.value = State()

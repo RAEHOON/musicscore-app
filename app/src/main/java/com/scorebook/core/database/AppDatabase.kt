@@ -19,7 +19,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         AudioEntity::class,
         PracticeSessionEntity::class,
     ],
-    version = 2,
+    version = AppDatabase.VERSION,
     exportSchema = false,
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -36,6 +36,7 @@ abstract class AppDatabase : RoomDatabase() {
 
     companion object {
         const val NAME = "scorebook.db"
+        const val VERSION = 2
 
         /** v1 → v2: 링크에 이름 추가 */
         val MIGRATION_1_2 = object : Migration(1, 2) {

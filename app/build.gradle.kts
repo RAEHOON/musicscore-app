@@ -36,6 +36,10 @@ android {
     }
 
     buildTypes {
+        debug {
+            // 배포판(릴리스 키 서명)과 나란히 설치해서 시험할 수 있게 패키지 이름을 다르게 한다
+            applicationIdSuffix = ".debug"
+        }
         release {
             isMinifyEnabled = true
             isShrinkResources = true

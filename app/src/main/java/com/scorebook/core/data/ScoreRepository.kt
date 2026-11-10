@@ -131,10 +131,14 @@ class ScoreRepository @Inject constructor(
     }
 
     suspend fun deletePages(scoreId: Long, ids: Collection<Long>) {
+        val candidatePaths = pageDao.getByIds(ids.toList()).mapNotNullTo(mutableSetOf()) { it.sourcePath }
         db.withTransaction {
             pageDao.deleteIds(ids.toList())
             normalizePositions(scoreId)
         }
+        // 같은 PDF 의 다른 페이지나 나누기·합치기로 만든 악보가 아직 쓰는 파일은 남긴다
+        val stillUsed = pageDao.allSourcePaths().toSet()
+        candidatePaths.filterNot { it in stillUsed }.forEach { files.delete(it) }
         regenerateThumbnail(scoreId)
     }
 

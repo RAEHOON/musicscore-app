@@ -53,6 +53,7 @@ import com.scorebook.core.storage.LibraryFiles
 import com.scorebook.ui.components.ConfirmDialog
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.text.SimpleDateFormat
@@ -110,8 +111,14 @@ class SettingsViewModel @Inject constructor(
                     backup.restore(uri)
                         .onSuccess { sendEffect(SettingsEffect.Restart) }
                         .onFailure {
-                            setState { copy(busy = false) }
                             sendEffect(SettingsEffect.Message("복원 실패: ${it.message}"))
+                            if (it is BackupManager.RolledBack) {
+                                // DB 를 닫은 뒤라 그대로는 쓸 수 없다. 안내를 읽을 시간을 준 뒤 다시 시작
+                                delay(3500)
+                                sendEffect(SettingsEffect.Restart)
+                            } else {
+                                setState { copy(busy = false) }
+                            }
                         }
                 }
             }

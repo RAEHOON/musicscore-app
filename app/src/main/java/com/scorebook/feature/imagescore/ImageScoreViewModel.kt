@@ -100,9 +100,7 @@ class ImageScoreViewModel @Inject constructor(
                 setState { copy(busy = true) }
                 runCatching {
                     val pages = scores.getPages(id)
-                    context.contentResolver.openOutputStream(intent.uri, "wt")?.use { out ->
-                        exporter.export(pages, emptyList(), emptyList(), out)
-                    } ?: error("파일을 열 수 없습니다")
+                    exporter.exportTo(pages, emptyList(), emptyList(), { context.contentResolver.openOutputStream(intent.uri, "wt") })
                 }.onSuccess {
                     sendEffect(ImageScoreEffect.Message("PDF로 저장했습니다. 악보 목록에도 추가되었어요"))
                 }.onFailure {

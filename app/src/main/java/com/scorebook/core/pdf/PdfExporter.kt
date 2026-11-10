@@ -23,6 +23,7 @@ import com.tom_roush.pdfbox.pdmodel.graphics.image.LosslessFactory
 import com.tom_roush.pdfbox.pdmodel.graphics.state.PDExtendedGraphicsState
 import com.tom_roush.pdfbox.util.Matrix
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import java.io.OutputStream
 import javax.inject.Inject
@@ -41,6 +42,31 @@ import kotlin.math.min
  */
 @Singleton
 class PdfExporter @Inject constructor(private val files: LibraryFiles) {
+
+    /**
+     * 임시 파일에 끝까지 만든 뒤 대상에 한 번에 복사한다.
+     * 만드는 도중에 실패하거나 취소돼도 대상 파일(원본 덮어쓰기 포함)은 건드리지 않는다.
+     * [openTarget] 은 복사 직전에 한 번만 호출된다.
+     */
+    suspend fun exportTo(
+        pages: List<ScorePage>,
+        strokes: List<InkStroke>,
+        items: List<AnnotationItem>,
+        openTarget: () -> OutputStream?,
+        onProgress: (Float) -> Unit = {},
+    ) = withContext(Dispatchers.IO) {
+        val temp = files.tempFile("export", "pdf")
+        try {
+            temp.outputStream().buffered().use { export(pages, strokes, items, it, onProgress) }
+            // 복사를 시작했으면 화면을 닫아도 끝까지 쓴다(반쪽짜리 파일 방지)
+            withContext(NonCancellable) {
+                val out = openTarget() ?: error("파일을 열 수 없습니다")
+                out.use { o -> temp.inputStream().use { it.copyTo(o, 64 * 1024) } }
+            }
+        } finally {
+            temp.delete()
+        }
+    }
 
     suspend fun export(
         pages: List<ScorePage>,

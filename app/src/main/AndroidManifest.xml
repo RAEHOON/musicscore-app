@@ -4,6 +4,9 @@
 
     <!-- 튜너 / 녹음 -->
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
+    <!-- 녹음 중 다른 앱으로 나가도 계속 녹음 (RecordingService) -->
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MICROPHONE" />
     <!-- 얼굴 제스처 페이지 넘김 -->
     <uses-permission android:name="android.permission.CAMERA" />
 
@@ -57,5 +60,10 @@
                 <data android:mimeType="image/*" />
             </intent-filter>
         </activity>
+
+        <service
+            android:name=".core.audio.RecordingService"
+            android:exported="false"
+            android:foregroundServiceType="microphone" />
     </application>
 </manifest>

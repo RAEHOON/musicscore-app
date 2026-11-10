@@ -74,6 +74,7 @@ class ViewerViewModel @Inject constructor(
 
     /** DB 쓰기는 순서를 보장하고, 화면을 닫아도 끝까지 저장되도록 앱 스코프에서 직렬 처리 */
     private val writes = Channel<suspend () -> Unit>(Channel.UNLIMITED)
+    private var lastWriteErrorAt = 0L
 
     /**
      * 지우개 한 번(펜을 대고 뗄 때까지)의 변경을 모아 되돌리기 1단위로 만든다.
@@ -91,7 +92,16 @@ class ViewerViewModel @Inject constructor(
 
     init {
         appScope.launch {
-            for (write in writes) runCatching { write() }
+            for (write in writes) {
+                runCatching { write() }.onFailure {
+                    // 화면에는 남아 있지만 저장은 안 된 상태이므로 알린다(연속 실패 시 한 번만)
+                    val now = System.currentTimeMillis()
+                    if (now - lastWriteErrorAt > WRITE_ERROR_NOTICE_MS) {
+                        lastWriteErrorAt = now
+                        sendEffect(ViewerEffect.Message("필기를 저장하지 못했습니다. 저장 공간을 확인해 주세요"))
+                    }
+                }
+            }
         }
         viewModelScope.launch { load() }
     }
@@ -775,8 +785,9 @@ class ViewerViewModel @Inject constructor(
         setState { copy(exportProgress = 0f) }
         viewModelScope.launch {
             try {
-                val out = context.contentResolver.openOutputStream(uri, "wt") ?: error("파일을 열 수 없습니다")
-                out.use { exporter.export(s.pages, strokes, items, it) { p -> setState { copy(exportProgress = p) } } }
+                exporter.exportTo(s.pages, strokes, items, { context.contentResolver.openOutputStream(uri, "wt") }) { p ->
+                    setState { copy(exportProgress = p) }
+                }
                 sendEffect(ViewerEffect.Message(if (options.overwriteOriginal) "원본 PDF에 저장했습니다" else "PDF로 저장했습니다"))
             } catch (e: SecurityException) {
                 sendEffect(ViewerEffect.Message("원본 파일에 쓸 권한이 없습니다. 새 파일로 저장해 주세요"))
@@ -814,6 +825,7 @@ class ViewerViewModel @Inject constructor(
 
     companion object {
         private const val MAX_UNDO = 200
+        private const val WRITE_ERROR_NOTICE_MS = 10_000L
         /** 획 지우개의 판정 크기(pt) */
         private const val STROKE_ERASER_SIZE = 10f
         const val MIN_ERASER = 4f
