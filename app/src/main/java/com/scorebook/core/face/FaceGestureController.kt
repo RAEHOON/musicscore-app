@@ -26,13 +26,15 @@ import kotlin.math.abs
 
 /**
  * 전면 카메라 + ML Kit 얼굴 인식(기기 내 번들 모델, 네트워크 불필요)으로 손 없이 페이지 넘기기.
- * - 고개 돌리기: 오른쪽 = 다음, 왼쪽 = 이전
- * - 미소 / 입 벌리기: 다음
+ * - 고개 돌리기: 책장을 넘기듯 왼쪽 = 다음, 오른쪽 = 이전.
+ *   화면을 보며 잠깐 멈춘 뒤(응시) 빠르게 돌렸을 때만 넘긴다. 그냥 두리번거리거나 천천히 돌린 것은 무시.
+ * - 입 벌리기: 다음
  * 제스처 후 중립 자세로 돌아와야 다시 동작(연속 넘김 방지) + 쿨다운.
  */
 class FaceGestureController(private val context: Context) {
 
-    enum class Status { OFF, SEARCHING, TRACKING }
+    /** READY = 고개 돌리기에서 응시가 확인되어 지금 돌리면 넘어가는 상태 */
+    enum class Status { OFF, SEARCHING, TRACKING, READY }
 
     private val _status = MutableStateFlow(Status.OFF)
     val status: StateFlow<Status> = _status.asStateFlow()
@@ -43,6 +45,15 @@ class FaceGestureController(private val context: Context) {
     private var armed = true
     private var lastTrigger = 0L
 
+    // 고개 돌리기: 응시(화면을 보며 멈춘 자세)를 기준으로 삼아 거기서 얼마나 빨리 돌렸는지를 본다
+    private var lastSeen = 0L
+    private var steadySince = 0L
+    private var anchorYaw = 0f
+    private var anchorPitch = 0f
+    private var hasBaseline = false
+    private var baselineYaw = 0f
+    private var turnStart = 0L
+
     fun start(
         owner: LifecycleOwner,
         mode: FaceGestureMode,
@@ -51,12 +62,11 @@ class FaceGestureController(private val context: Context) {
         onPrevious: () -> Unit,
     ) {
         stop()
+        // 고개 돌리기는 응시부터 해야 하고, 입 벌리기는 바로 동작한다
+        resetHeadTurn()
+        armed = mode != FaceGestureMode.HEAD_TURN
         val options = FaceDetectorOptions.Builder()
             .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)
-            .setClassificationMode(
-                if (mode == FaceGestureMode.SMILE) FaceDetectorOptions.CLASSIFICATION_MODE_ALL
-                else FaceDetectorOptions.CLASSIFICATION_MODE_NONE
-            )
             .setContourMode(
                 if (mode == FaceGestureMode.MOUTH_OPEN) FaceDetectorOptions.CONTOUR_MODE_ALL
                 else FaceDetectorOptions.CONTOUR_MODE_NONE
@@ -116,7 +126,7 @@ class FaceGestureController(private val context: Context) {
                 if (face == null) {
                     _status.value = Status.SEARCHING
                 } else {
-                    _status.value = Status.TRACKING
+                    if (mode != FaceGestureMode.HEAD_TURN) _status.value = Status.TRACKING
                     handle(face, mode, sensitivity, onNext, onPrevious)
                 }
             }
@@ -131,15 +141,42 @@ class FaceGestureController(private val context: Context) {
             FaceGestureMode.HEAD_TURN -> {
                 val threshold = 32f - 16f * s
                 val yaw = face.headEulerAngleY
-                if (abs(yaw) < threshold * 0.4f) armed = true
-                if (armed && !coolingDown) {
-                    if (yaw < -threshold) fire(now, onNext) else if (yaw > threshold) fire(now, onPrevious)
+                val pitch = face.headEulerAngleX
+                // 얼굴을 놓쳤다가 다시 잡으면 처음부터 다시 응시해야 한다
+                if (now - lastSeen > FACE_LOST_MS) resetHeadTurn()
+                lastSeen = now
+                if (abs(yaw - anchorYaw) > STEADY_YAW_DEG || abs(pitch - anchorPitch) > STEADY_PITCH_DEG) {
+                    anchorYaw = yaw
+                    anchorPitch = pitch
+                    steadySince = now
+                } else if (now - steadySince >= GAZE_DWELL_MS) {
+                    // 응시 판정: 화면을 보던 자세 그대로 고개가 잠깐 멈춰 있어야 넘길 준비가 된다.
+                    // 고개를 돌린 채 멈춰 있는 것(다른 곳을 보는 중)은 준비로 치지 않는다.
+                    val facingScreen = if (hasBaseline) abs(anchorYaw - baselineYaw) < threshold * 0.4f
+                    else abs(anchorYaw) < FRONTAL_YAW_DEG
+                    if (facingScreen && (armed || !coolingDown)) {
+                        armed = true
+                        hasBaseline = true
+                        baselineYaw = anchorYaw
+                        turnStart = 0L
+                    }
                 }
-            }
-            FaceGestureMode.SMILE -> {
-                val p = face.smilingProbability ?: return
-                if (p < 0.3f) armed = true
-                if (armed && !coolingDown && p > 0.92f - 0.3f * s) fire(now, onNext)
+                if (armed) {
+                    val turn = yaw - baselineYaw
+                    if (abs(turn) < threshold * 0.4f) {
+                        turnStart = 0L
+                    } else {
+                        if (turnStart == 0L) turnStart = now
+                        when {
+                            // 천천히 돌아간 고개는 넘기려는 게 아니라 그냥 움직인 것
+                            now - turnStart > TURN_WINDOW_MS -> armed = false
+                            // 책장을 넘기듯: 왼쪽으로 돌리면 다음, 오른쪽으로 돌리면 이전
+                            turn > threshold -> fire(now, onNext)
+                            turn < -threshold -> fire(now, onPrevious)
+                        }
+                    }
+                }
+                _status.value = if (armed) Status.READY else Status.TRACKING
             }
             FaceGestureMode.MOUTH_OPEN -> {
                 val upper = face.getContour(FaceContour.UPPER_LIP_BOTTOM)?.points ?: return
@@ -159,7 +196,26 @@ class FaceGestureController(private val context: Context) {
         ContextCompat.getMainExecutor(context).execute(action)
     }
 
+    private fun resetHeadTurn() {
+        armed = false
+        hasBaseline = false
+        steadySince = 0L
+        turnStart = 0L
+        // 다음 프레임에서 기준 자세를 새로 잡도록
+        anchorYaw = Float.MAX_VALUE
+        anchorPitch = Float.MAX_VALUE
+    }
+
     companion object {
         private const val COOLDOWN_MS = 900L
+        /** 이 시간 동안 화면을 보며 멈춰 있어야 응시로 본다 */
+        private const val GAZE_DWELL_MS = 400L
+        /** 응시 자세에서 벗어나기 시작해 이 시간 안에 끝까지 돌려야 넘김으로 본다 */
+        private const val TURN_WINDOW_MS = 700L
+        private const val FACE_LOST_MS = 600L
+        private const val STEADY_YAW_DEG = 6f
+        private const val STEADY_PITCH_DEG = 8f
+        /** 처음 기준 자세를 잡을 때 화면 정면으로 인정하는 좌우 범위 */
+        private const val FRONTAL_YAW_DEG = 20f
     }
 }

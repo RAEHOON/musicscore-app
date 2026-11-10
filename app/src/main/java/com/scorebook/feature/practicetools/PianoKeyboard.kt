@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -43,6 +44,9 @@ private val WHITE_OFFSETS = intArrayOf(0, 2, 4, 5, 7, 9, 11)
 /** 흰건반 인덱스(옥타브 내) 뒤에 검은건반이 있는지: C D (E) F G A (B) */
 private val HAS_BLACK = booleanArrayOf(true, true, false, true, true, true, false)
 private const val WHITE_KEYS = 15 // 2옥타브 + 마지막 C
+private const val OCTAVE_WHITE_KEYS = 8 // 1옥타브 + 마지막 C
+/** 한 줄로 그렸을 때 흰건반이 이보다 좁아지면 옥타브별 두 줄로 나눈다 */
+private val MIN_KEY_WIDTH = 44.dp
 
 @Composable
 fun PianoTab(state: PracticeToolsState, onIntent: (PracticeToolsIntent) -> Unit) {
@@ -76,13 +80,35 @@ fun PianoTab(state: PracticeToolsState, onIntent: (PracticeToolsIntent) -> Unit)
                 enabled = state.pianoOctave < PracticeToolsViewModel.MAX_OCTAVE,
             ) { Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, "높은 옥타브") }
         }
-        PianoKeyboard(
-            startOctave = state.pianoOctave,
-            onNote = { onIntent(PracticeToolsIntent.PlayNote(it)) },
-            modifier = Modifier.fillMaxWidth().height(190.dp),
-        )
+        BoxWithConstraints(Modifier.fillMaxWidth()) {
+            val onNote: (Int) -> Unit = { onIntent(PracticeToolsIntent.PlayNote(it)) }
+            if (maxWidth / WHITE_KEYS < MIN_KEY_WIDTH) {
+                // 좁은 화면: 윗줄 = 높은 옥타브, 아랫줄 = 낮은 옥타브 (가운데 C 는 양쪽에 다 있음)
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    PianoKeyboard(
+                        startOctave = state.pianoOctave + 1,
+                        whiteKeys = OCTAVE_WHITE_KEYS,
+                        onNote = onNote,
+                        modifier = Modifier.fillMaxWidth().height(150.dp),
+                    )
+                    PianoKeyboard(
+                        startOctave = state.pianoOctave,
+                        whiteKeys = OCTAVE_WHITE_KEYS,
+                        onNote = onNote,
+                        modifier = Modifier.fillMaxWidth().height(150.dp),
+                    )
+                }
+            } else {
+                PianoKeyboard(
+                    startOctave = state.pianoOctave,
+                    whiteKeys = WHITE_KEYS,
+                    onNote = onNote,
+                    modifier = Modifier.fillMaxWidth().height(190.dp),
+                )
+            }
+        }
         Text(
-            "C4 = 가운데 도 · 여러 건반을 동시에 누르거나 미끄러지듯 쳐도 됩니다",
+            "C4 = 가운데 도 · 두 줄일 때는 윗줄이 높은 옥타브 · 여러 건반을 동시에 누르거나 미끄러지듯 쳐도 됩니다",
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(top = 10.dp),
@@ -91,7 +117,7 @@ fun PianoTab(state: PracticeToolsState, onIntent: (PracticeToolsIntent) -> Unit)
 }
 
 @Composable
-private fun PianoKeyboard(startOctave: Int, onNote: (Int) -> Unit, modifier: Modifier = Modifier) {
+private fun PianoKeyboard(startOctave: Int, whiteKeys: Int, onNote: (Int) -> Unit, modifier: Modifier = Modifier) {
     val pressed = remember { mutableStateMapOf<PointerId, Int>() }
     val currentOnNote = rememberUpdatedState(onNote)
     val base = 12 * (startOctave + 1)
@@ -102,17 +128,17 @@ private fun PianoKeyboard(startOctave: Int, onNote: (Int) -> Unit, modifier: Mod
     fun whiteMidi(i: Int) = base + 12 * (i / 7) + WHITE_OFFSETS[i % 7]
 
     Canvas(
-        modifier.pointerInput(base) {
+        modifier.pointerInput(base, whiteKeys) {
             fun keyAt(p: Offset): Int? {
-                val ww = size.width.toFloat() / WHITE_KEYS
+                val ww = size.width.toFloat() / whiteKeys
                 val h = size.height.toFloat()
                 if (p.x < 0 || p.x >= size.width || p.y < 0 || p.y > h) return null
-                val i = (p.x / ww).toInt().coerceIn(0, WHITE_KEYS - 1)
+                val i = (p.x / ww).toInt().coerceIn(0, whiteKeys - 1)
                 if (p.y < h * 0.62f) {
                     // 검은건반이 위에 있으므로 먼저 판정
                     val bw = ww * 0.6f
                     for (j in listOf(i - 1, i)) {
-                        if (j < 0 || j >= WHITE_KEYS - 1 || !HAS_BLACK[j % 7]) continue
+                        if (j < 0 || j >= whiteKeys - 1 || !HAS_BLACK[j % 7]) continue
                         val cx = (j + 1) * ww
                         if (p.x in (cx - bw / 2)..(cx + bw / 2)) return whiteMidi(j) + 1
                     }
@@ -144,7 +170,7 @@ private fun PianoKeyboard(startOctave: Int, onNote: (Int) -> Unit, modifier: Mod
             }
         },
     ) {
-        val ww = size.width / WHITE_KEYS
+        val ww = size.width / whiteKeys
         val h = size.height
         val down = pressed.values.toSet()
         val paint = android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG).apply {
@@ -152,7 +178,7 @@ private fun PianoKeyboard(startOctave: Int, onNote: (Int) -> Unit, modifier: Mod
             textSize = 11.dp.toPx()
             textAlign = android.graphics.Paint.Align.CENTER
         }
-        for (i in 0 until WHITE_KEYS) {
+        for (i in 0 until whiteKeys) {
             val midi = whiteMidi(i)
             val x = i * ww
             drawRoundRect(
@@ -168,7 +194,7 @@ private fun PianoKeyboard(startOctave: Int, onNote: (Int) -> Unit, modifier: Mod
             drawIntoCanvas { it.nativeCanvas.drawText(label, x + ww / 2, h - 8.dp.toPx(), paint) }
         }
         val bw = ww * 0.6f
-        for (i in 0 until WHITE_KEYS - 1) {
+        for (i in 0 until whiteKeys - 1) {
             if (!HAS_BLACK[i % 7]) continue
             val midi = whiteMidi(i) + 1
             val cx = (i + 1) * ww

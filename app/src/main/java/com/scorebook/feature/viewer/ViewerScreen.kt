@@ -351,6 +351,7 @@ fun ViewerScreen(
                 }
                 if (state.faceGestureActive) {
                     val label = when (faceStatus) {
+                        FaceGestureController.Status.READY -> "넘길 준비됨"
                         FaceGestureController.Status.TRACKING -> "얼굴 인식 중"
                         FaceGestureController.Status.SEARCHING -> "얼굴을 찾는 중"
                         FaceGestureController.Status.OFF -> "카메라 준비 중"

@@ -182,7 +182,7 @@ enum class ViewMode { SINGLE, TWO_PAGE, HALF, VERTICAL }
 
 enum class ColorMode { NORMAL, NIGHT, SEPIA }
 
-enum class FaceGestureMode { HEAD_TURN, SMILE, MOUTH_OPEN }
+enum class FaceGestureMode { HEAD_TURN, MOUTH_OPEN }
 
 enum class LibrarySort { RECENT, TITLE, COMPOSER, ADDED }
 

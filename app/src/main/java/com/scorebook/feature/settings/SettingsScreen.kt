@@ -223,8 +223,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     modifier = Modifier.padding(horizontal = 16.dp),
                 )
                 listOf(
-                    FaceGestureMode.HEAD_TURN to "고개 돌리기 (오른쪽 = 다음, 왼쪽 = 이전)",
-                    FaceGestureMode.SMILE to "미소 짓기 (다음)",
+                    FaceGestureMode.HEAD_TURN to "고개 돌리기 (화면을 본 뒤 왼쪽으로 = 다음, 오른쪽으로 = 이전)",
                     FaceGestureMode.MOUTH_OPEN to "입 벌리기 (다음, 관악기 연주자 비추천)",
                 ).forEach { (mode, label) ->
                     RadioRow(label, s.faceGestureMode == mode) { update { it.copy(faceGestureMode = mode) } }
