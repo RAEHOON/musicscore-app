@@ -140,6 +140,7 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
     val s = state.settings
     val snackbar = remember { SnackbarHostState() }
     val activity = LocalActivity.current
+    var showLicenses by remember { mutableStateOf(false) }
     fun update(t: (AppSettings) -> AppSettings) = viewModel.onIntent(SettingsIntent.Update(t))
 
     val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
@@ -266,12 +267,25 @@ fun SettingsScreen(viewModel: SettingsViewModel = hiltViewModel()) {
                     trailingContent = { Text(formatBytes(state.storageBytes)) },
                 )
                 ListItem(
+                    headlineContent = { Text("개인정보처리방침") },
+                    supportingContent = { Text("악보·필기·녹음은 기기 밖으로 나가지 않습니다") },
+                    modifier = Modifier.clickable {
+                        runCatching { activity?.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(PRIVACY_POLICY_URL))) }
+                    },
+                )
+                ListItem(
+                    headlineContent = { Text("오픈소스 라이선스") },
+                    modifier = Modifier.clickable { showLicenses = true },
+                )
+                ListItem(
                     headlineContent = { Text("앱 버전") },
                     trailingContent = { Text("V${com.scorebook.BuildConfig.VERSION_NAME} (${com.scorebook.BuildConfig.VERSION_CODE})") },
                 )
             }
         }
     }
+
+    if (showLicenses) LicensesDialog(onDismiss = { showLicenses = false })
 
     if (state.confirmRestore != null) {
         ConfirmDialog(

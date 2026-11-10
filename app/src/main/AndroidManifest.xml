@@ -10,6 +10,10 @@
     <!-- 얼굴 제스처 페이지 넘김 -->
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <!-- 이 앱은 네트워크를 쓰지 않는다. ML Kit 이 사용 통계 전송용으로 끌고 오는 권한을 제거 -->
+    <uses-permission android:name="android.permission.INTERNET" tools:node="remove" />
+    <uses-permission android:name="android.permission.ACCESS_NETWORK_STATE" tools:node="remove" />
+
     <uses-feature android:name="android.hardware.camera.front" android:required="false" />
     <uses-feature android:name="android.hardware.microphone" android:required="false" />
     <uses-feature android:name="android.hardware.touchscreen" android:required="false" />
